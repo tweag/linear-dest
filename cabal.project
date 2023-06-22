@@ -1,0 +1,6 @@
+packages: *.cabal
+
+tests: true
+
+package linear-dest
+  ghc-options: -Wall
