@@ -27,6 +27,7 @@ mkShell {
   NIX_PATH = "nixpkgs=${pkgs.path}";
 
   buildInputs = [
+    bashInteractive
     haskell.compiler."ghc${ghcVersion}"
     cabal-install
     stack-wrapped

@@ -19,6 +19,7 @@ module Compact.Pure
     fromRegExtract,
     Incomplete,
     alloc,
+    indInfoPtr,
   )
 where
 

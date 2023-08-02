@@ -3,6 +3,8 @@ cradle:
     # stack
     - path: "./src"
       config: { cradle: {stack: {component: "linear-dest:lib"}} }
+    - path: "./dump"
+      config: { cradle: {stack: {component: "linear-dest:executable:dump"}} }
     - path: "./test"
       config: { cradle: {stack: {component: "linear-dest:test:test"}} }
     - path: "./memory"

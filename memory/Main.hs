@@ -1,24 +1,29 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Main (main) where
 
 import qualified Bench.Compact.Pure as Compact
 import Bench.Compact.SExpr
-import Control.DeepSeq (rnf)
+import Control.DeepSeq (rnf, force)
 import Control.Exception (evaluate)
 import System.Environment
 import Test.Tasty.Bench (defaultMain)
+import Test.Tasty.HUnit
+import Test.Tasty (testGroup)
 import GHC.Compact (compact, getCompact)
+import Data.Either (isRight)
 
 -- Launch regular benchmark with
--- stack bench linear-dest:bench:memory --ghc-options '-threaded -O2 -rtsopts' --ba '+RTS -T -N -RTS'
--- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N -RTS'
+-- stack bench linear-dest:bench:memory --ghc-options '-threaded -O2 -rtsopts' --ba '+RTS -T -N1 -RTS'
+-- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
 
 -- Profile parseWithoutDest with
--- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N -RTS runParseWithoutDest'
--- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N -RTS runParseWithoutDest'
+-- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
+-- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
 
 -- Profile parseUsingDest with
--- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N -RTS runParseUsingDest'
--- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N -RTS runParseUsingDest'
+-- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N1 -RTS runParseUsingDest' && mv memory.prof memory_using_dest.prof
+-- cabal bench -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseUsingDest' && mv memory.prof memory_using_dest.prof
 
 -- remove useless lines in profiling results with
 -- .*?0\.0    0\.0     0\.0    0\.0\n
@@ -32,17 +37,27 @@ import GHC.Compact (compact, getCompact)
 main :: IO ()
 main = do
   args <- getArgs
+  !sampleData <- evaluate =<< force <$> loadSampleData
   case args of
     "runParseWithoutDest" : _ -> do
-      sampleData <- loadSampleData
       let res = parseWithoutDest sampleData
-      resInRegion <- compact res
-      evaluate $ rnf $ getCompact resInRegion
+      compResInRegion <- compact res
+      evaluate . rnf . getCompact $ compResInRegion
     "runParseUsingDest" : _ -> do
-      sampleData <- loadSampleData
-      let res = parseUsingDest sampleData
-      evaluate $ rnf $ res
+      let resInRegion = parseUsingDest sampleData
+      evaluate . rnf $ resInRegion
     _ ->
       defaultMain
         [ Compact.benchmarks
+        , testGroup "safety"
+            [testCaseInfo "parseUsingDest and parseWithoutDest give the same result and it is Right _" (sameResult sampleData)]
         ]
+
+sameResult :: String -> IO String
+sameResult sampleData = do
+  let withoutDest = parseWithoutDest sampleData
+      usingDest = parseUsingDest sampleData
+  assertEqual "withoutDest == usingDest" withoutDest usingDest
+  assertEqual "withoutDest is Right" True (isRight withoutDest)
+  assertEqual "usingDest is Right" True (isRight usingDest)
+  return ""

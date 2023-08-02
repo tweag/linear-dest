@@ -5,18 +5,18 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots{n}# xInRegion s3 of
-              (# s4, (# {d#PrimList} #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [{ptrDList}]) (# s5, ({d#LiftedList}) #)
+              (# s4, (# {destPrimList} #) #) -> case putMVar# m# () s4 of
+                s5 -> putDebugLn# (showFill (Ptr d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [{ptrDList}]) (# s5, ({destLiftedList}) #)
   {{-# INLINE gFill# #-}}"""
 
 for n in range(1, 7+1):
     metaSelList = ", ".join(["'( 'MetaSel f{} u{} ss{} ds{}, t{})".format(i, i, i, i, i) for i in range(n)])
     destPrimList = ", ".join(["d{}#".format(i) for i in range(n)])
     destLiftedList = ", ".join(["Dest d{}# :: Dest r t{}".format(i, i) for i in range(n)])
-    ptrDList = ", ".join(["ptrD d{}#".format(i) for i in range(n)])
+    ptrDList = ", ".join(["Ptr d{}#".format(i) for i in range(n)])
     print(template.format(n=n, destPrimList=destPrimList, ptrDList=ptrDList, metaSelList=metaSelList, destLiftedList=destLiftedList))
     print()
 

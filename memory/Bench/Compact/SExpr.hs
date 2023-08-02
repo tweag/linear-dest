@@ -65,7 +65,7 @@ data SExprParseError
   | UnexpectedEOFSList (Maybe [SExpr])
   | UnexpectedEOFSString Bool (Maybe String)
   | UnexpectedContentAfter SExpr (Maybe String)
-  deriving (Generic, NFData)
+  deriving (NonLinear.Eq, Generic, NFData)
 
 instance Show SExprParseError where
   show = \case
