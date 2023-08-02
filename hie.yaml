@@ -1,0 +1,9 @@
+cradle:
+  multi:
+    # stack
+    - path: "./src"
+      config: { cradle: {stack: {component: "linear-dest:lib"}} }
+    - path: "./test"
+      config: { cradle: {stack: {component: "linear-dest:test:test"}} }
+    - path: "./memory"
+      config: { cradle: {stack: {component: "linear-dest:bench:memory"}} }

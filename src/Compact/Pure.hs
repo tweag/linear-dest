@@ -14,9 +14,9 @@ module Compact.Pure
     DestsOf,
     fillComp,
     fillLeaf,
-    intoR,
-    complete,
-    completeExtract,
+    intoReg,
+    fromReg,
+    fromRegExtract,
     Incomplete,
     alloc,
   )

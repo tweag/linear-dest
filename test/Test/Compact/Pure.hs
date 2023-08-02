@@ -30,13 +30,13 @@ compactPureTests =
     "Using dests to fill compact region"
     [ testCaseInfo "Dests for compact region: compose when RHS is freshly allocated" compOnFreshAlloc,
       testCaseInfo "Dests for compact region: compose when RHS has already been filled" compOnUsedAlloc,
-      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with completeExtract" fillCustomDataAndExtract
+      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromRegExtract" fillCustomDataAndExtract
     ]
 
 -- Launch with
 
 -- $ stack test
--- cabal test -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' --test-options='+RTS -N -RTS'
+-- cabal test -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' --test-options='+RTS -N -RTS'
 
 data Foo a b = MkFoo {unBar :: a, unBaz :: (b, b), unBoo :: a} deriving (Eq, Generic, Show)
 
@@ -45,7 +45,7 @@ compOnFreshAlloc = do
   let actual :: Ur (Int, Int)
       !actual = withRegion $ \(r :: RegionToken r) -> case dup2 r of
         (r', r'') ->
-          complete $
+          fromReg $
             (alloc r')
               <&> ( \dp ->
                       case (dp & fill @'(,)) of
@@ -66,7 +66,7 @@ compOnUsedAlloc = do
   let actual :: Ur (Int, (Int, Int))
       !actual = withRegion $ \r -> case dup2 r of
         (r', r'') ->
-          complete $
+          fromReg $
             (alloc r')
               <&> ( \dp ->
                       case dp & fill @'(,) of
@@ -86,7 +86,7 @@ fillCustomDataAndExtract :: IO String
 fillCustomDataAndExtract = do
   let actual :: Ur (Foo Int Char, Int)
       !actual = withRegion $ \r ->
-        completeExtract $
+        fromRegExtract $
           (alloc r)
             <&> ( \d ->
                     case d & fill @'MkFoo of

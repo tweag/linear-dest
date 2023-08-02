@@ -1,4 +1,4 @@
-{ system ? builtins.currentSystem, sources ? import ./nix/sources.nix, ghcVersion ? "962" }:
+{ system ? builtins.currentSystem, sources ? import ./nix/sources.nix, ghcVersion ? "96" }:
 
 let
   selectHls = self: super: {
@@ -25,17 +25,6 @@ mkShell {
   # Set UTF-8 local so that run-tests can parse GHC's unicode output.
   LANG="C.UTF-8";
   NIX_PATH = "nixpkgs=${pkgs.path}";
-  # CONFIGURE_ARGS = [
-  #   "--with-gmp-includes=${gmp.dev}/include"
-  #   "--with-gmp-libraries=${gmp.out}/lib"
-  #   "--with-curses-includes=${ncurses.dev}/include"
-  #   "--with-curses-libraries=${ncurses.out}/lib"
-  #   "--with-libnuma-includes=${numactl}/include"
-  #   "--with-libnuma-libraries=${numactl}/lib"
-  #   "--with-libdw-includes=${elfutils.dev}/include"
-  #   "--with-libdw-libraries=${elfutils.out}/lib"
-  #   "--enable-dwarf-unwind"
-  # ];
 
   buildInputs = [
     haskell.compiler."ghc${ghcVersion}"
@@ -43,11 +32,5 @@ mkShell {
     stack-wrapped
     nix
     haskell-language-server
-    # gmp.dev
-    # gmp.out
-    # numactl
-    # elfutils
-    # ncurses.dev
-    # ncurses.out
   ];
 }

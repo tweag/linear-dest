@@ -187,7 +187,7 @@ parseUsingDest' = \cases
 parseUsingDest :: String -> Either SExprParseError SExpr
 parseUsingDest str =
   case withRegion $ \r ->
-    case completeExtract $ (alloc r) <&> DNotInSList <&> flip parseUsingDest' str <&> finalizeResults of
+    case fromRegExtract $ (alloc r) <&> DNotInSList <&> flip parseUsingDest' str <&> finalizeResults of
       Ur (expr, Right ()) -> Ur (Right expr)
       Ur (expr, Left errFn) -> Ur (Left $ errFn expr) of
     Ur res -> res

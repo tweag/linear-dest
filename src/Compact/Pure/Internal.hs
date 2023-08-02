@@ -50,6 +50,15 @@ isProfilingEnabled = unsafePerformIO $ do
   v <- peek $ intAddr `plusPtr` wordSize
   return $ v /= (1 :: Word)
 
+indInfoPtr :: Ptr Word
+indInfoPtr = unsafePerformIO $ do
+  let unevaluatedThunk = _hide Just (_hide "Init IND info ptr...")
+  let !forcePartialEval = case (_hide unevaluatedThunk) of { Just x -> _hide x; Nothing -> "Should not happen" }
+  putStrLn $ show forcePartialEval
+  infoPtr <- peek (aToRawPtr unevaluatedThunk)
+  putStrLn $ "Initialized: " ++ (show infoPtr)
+  return $! wordToPtr infoPtr
+
 wordSize :: Int
 wordSize = 8
 
@@ -244,47 +253,59 @@ instance {-# OVERLAPPING #-} ShowHeap Char where
   _showHeap = _showHeapPrim "Char" 1 'a'
 
 instance (Generic a, repA ~ Rep a (), ctors ~ GCtorsOf repA, ShowTryCtors ctors a) => ShowHeap a where
-  _showHeap = _showTryCtors @ctors @a
+  _showHeap indent prefix x = do
+    actualInfoPtr <- peekInfoPtr x
+    if wordToPtr actualInfoPtr == indInfoPtr then do
+      target <- peek (aToRawPtr x `plusPtr` wordSize)
+      case wordToPtr' target of
+        Ptr' targetX -> _showHeap @a indent (prefix ++ "@" ++ (show . ptrToWord . aToRawPtr $ x) ++ " ~> ") targetX
+    else do
+      _showTryCtors @ctors @a indent prefix x
 
 _showHeapPrim :: String -> Int -> a -> (Int -> String -> a -> IO String)
-_showHeapPrim typeName n representative indent selectorRepr x = do
+_showHeapPrim typeName n representative indent prefix x = do
   let pX = aToRawPtr x
   evaluatedInfoPtr <- let !r = representative in peekInfoPtr r
   actualInfoPtr <- peekInfoPtr x
-  if actualInfoPtr == evaluatedInfoPtr
-    then do
-      rawX <- showRaw n x
-      return $
-        (replicate (2 * indent) ' ')
-          ++ selectorRepr
-          ++ "@"
-          ++ show (ptrToWord pX)
-          ++ " = [value] :: "
-          ++ typeName
-          ++ " "
-          ++ rawX
-    else do
-      rawX <- showRaw 0 x
-      return $
-        (replicate (2 * indent) ' ')
-          ++ "@"
-          ++ show (ptrToWord pX)
-          ++ " = THUNK :: "
-          ++ typeName
-          ++ " "
-          ++ rawX
+  if wordToPtr actualInfoPtr == indInfoPtr then do
+    target <- peek (aToRawPtr x `plusPtr` wordSize)
+    case wordToPtr' target of
+      Ptr' targetX -> _showHeapPrim typeName n representative indent (prefix ++ "@" ++ (show . ptrToWord . aToRawPtr $ x) ++ " ~> ") targetX
+  else do
+    if actualInfoPtr == evaluatedInfoPtr
+      then do
+        rawX <- showRaw n x
+        return $
+          (replicate (2 * indent) ' ')
+            ++ prefix
+            ++ "@"
+            ++ show (ptrToWord pX)
+            ++ " = [value] :: "
+            ++ typeName
+            ++ " "
+            ++ rawX
+      else do
+        rawX <- showRaw 0 x
+        return $
+          (replicate (2 * indent) ' ')
+            ++ "@"
+            ++ show (ptrToWord pX)
+            ++ " = THUNK :: "
+            ++ typeName
+            ++ " "
+            ++ rawX
 
 class ShowTryCtors (ctors :: [(Meta, [(Meta, Type)])]) (a :: Type) where
   _showTryCtors :: Int -> String -> a -> IO String
 
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA) => ShowTryCtors '[] a where
-  _showTryCtors indent selectorRepr x = do
+  _showTryCtors indent prefix x = do
     let pAddr = ptrToWord $ aToRawPtr x
         DatatypeData {..} = getDatatypeData @metaA
-    rawP <- showRaw 0 x
+    rawP <- showRaw 1 x
     return $
       (replicate (2 * indent) ' ')
-        ++ selectorRepr
+        ++ prefix
         ++ "@"
         ++ show pAddr
         ++ " = THUNK :: "
@@ -293,7 +314,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
         ++ rawP
 
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, Constructor metaCtor, 'MetaCons symCtor f r ~ metaCtor, GShallow symCtor repA, ShowTryCtors otherCtors a, ShowFields fields, arity ~ Length fields, KnownNat arity) => ShowTryCtors ('(metaCtor, fields) : otherCtors) a where
-  _showTryCtors indent selectorRepr x = do
+  _showTryCtors indent prefix x = do
     evaluatedInfoPtr <- getCtorInfoPtrFromSym @symCtor @a
     actualInfoPtr <- peekInfoPtr x
     if evaluatedInfoPtr == actualInfoPtr
@@ -306,7 +327,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
         next <- _showFields @fields (indent + 1) pX 0
         return $
           (replicate (2 * indent) ' ')
-            ++ selectorRepr
+            ++ prefix
             ++ "@"
             ++ show (ptrToWord pX)
             ++ " = "
@@ -319,7 +340,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
             ++ rawP
             ++ "\n"
             ++ next
-      else _showTryCtors @otherCtors @a indent selectorRepr x
+      else _showTryCtors @otherCtors @a indent prefix x
 
 class ShowFields (fields :: [(Meta, Type)]) where
   _showFields :: Int -> Ptr a -> Int -> IO String
@@ -356,6 +377,7 @@ instance (GShallow n (f p)) => GShallow n (M1 i c f p) where
 instance (b ~ IsJust (GSpecCtorOf symCtor (f p)), IfT b (GShallow symCtor (f p)) (GShallow symCtor (g p)), KnownBool b) => GShallow symCtor ((f :+: g) p) where
   gShallowTerm = ifV @b (L1 $ gShallowTerm @symCtor @(f p)) (R1 $ gShallowTerm @symCtor @(g p))
 
+{-# NOINLINE shallowTerm #-}
 shallowTerm :: forall (symCtor :: Symbol) a. (Generic a, GShallow symCtor (Rep a ())) => a
 shallowTerm = to @a $ gShallowTerm @symCtor @(Rep a ())
 
@@ -382,10 +404,11 @@ type RegionContext r = Reifies r Region
 
 data Dest r a = Dest (Dest# a)
 
-newtype Incomplete r a b = Incomplete (Dest# a -> State# RealWorld -> (# State# RealWorld, b #)) deriving (Data.Functor) via Data (Incomplete r a)
+newtype Incomplete r a b = Incomplete (a, b)
+  deriving Data.Functor via Data (Incomplete r a)
+  deriving Control.Functor
 
-instance Control.Functor (Incomplete r a) where
-  fmap f (Incomplete t) = Incomplete (\d# s -> case t d# s of (# s', b #) -> case f b of !r -> (# s', r #))
+-- Function which inserts indirection: `stg_upd_frame_info`
 
 getRegion :: forall r. (RegionContext r) => Region
 getRegion = reflect (Proxy :: Proxy r)
@@ -412,44 +435,39 @@ fillComp = toLinear2 _fillComp
 {-# INLINE fillComp #-}
 
 fillLeaf :: forall r a. (RegionContext r) => a -> Dest r a %1 -> ()
-fillLeaf x = fillComp (intoR (RegionToken @r (reflect (Proxy :: Proxy r))) x)
+fillLeaf x = fillComp (intoReg (RegionToken @r (reflect (Proxy :: Proxy r))) x)
 {-# INLINE fillLeaf #-}
 
 _fillComp :: forall r a b. (RegionContext r) => Incomplete r a b -> Dest r a -> b
-_fillComp (Incomplete f) (Dest d#) =
-  unsafeDupablePerformIO . IO $ \s0 -> case putDebugLn# message (# s0, () #) of
-    (# s1, () #) -> (f d# s1)
-  where
-    message =
-      ( "fillComp: @"
-          ++ (show . ptrToWord $ ptrD d#)
-          ++ " will be supplied to Incomplete's payload"
-      )
-
-complete :: forall r a. (RegionContext r) => Incomplete r a () %1 -> Ur a
-complete = toLinear _complete
-
-completeExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) %1 -> Ur (a, b)
-completeExtract = toLinear _completeExtract
+_fillComp (Incomplete (root, companion)) (Dest d#) =
+  unsafeDupablePerformIO . IO $ \s0 -> case affect# d# root s0 of
+    (# s1, pRoot# #) -> putDebugLn# message (# s1, companion #)
+      where
+        message =
+          ( "fillComp: @"
+              ++ (show . ptrToWord $ ptrD d#)
+              ++ " <- #"
+              ++ (show . ptrToWord $ Ptr pRoot#)
+              ++ ": [Incomplete OR value]"
+          )
 
 -- TODO: should we add the redundant '(RegionContext r) =>' here?
-intoR :: forall r a. RegionToken r %1 -> a -> Incomplete r a ()
-intoR = toLinear2 _intoR
+intoReg :: forall r a. RegionToken r %1 -> a -> Incomplete r a ()
+intoReg = toLinear2 _intoReg
 
-{-# INLINE _intoR #-}
-_intoR :: forall r a. RegionToken r -> a -> Incomplete r a ()
-_intoR (RegionToken (Region (Compact c# _ (MVar m#)))) x = Incomplete $
-  \d# s0 -> case putInRegionIfNot# c# m# x s0 of
-    (# s1, xInRegion #) -> case assign# d# xInRegion s1 of
-      (# s2, pXInRegion #) -> putDebugLn# message (# s2, () #)
-        where
-          message =
-            ( "intoR: @"
-                ++ (show . ptrToWord $ ptrD d#)
-                ++ " <- #"
-                ++ (show . ptrToWord $ Ptr pXInRegion)
-                ++ ": [value]"
-            )
+{-# INLINE _intoReg #-}
+_intoReg :: forall r a. RegionToken r -> a -> Incomplete r a ()
+_intoReg (RegionToken (Region (Compact c# _ (MVar m#)))) x =
+  unsafeDupablePerformIO . IO $ \s0 ->
+    case putInRegionIfNot# c# m# x s0 of
+      (# s1, xInRegion #) -> case anyToAddr# xInRegion s1 of
+        (# s2, pXInRegion# #) -> putDebugLn# message (# s2, Incomplete (xInRegion, ()) #)
+          where
+            message =
+              ( "intoReg: [region] <- #"
+                  ++ (show . ptrToWord $ Ptr pXInRegion#)
+                  ++ ": [value]"
+              )
 
 putInRegionIfNot# :: Compact# -> MVar# RealWorld () -> a -> State# RealWorld -> (# State# RealWorld, a #)
 putInRegionIfNot# c# m# x = \s0 -> case compactContains# c# x s0 of
@@ -460,63 +478,76 @@ putInRegionIfNot# c# m# x = \s0 -> case compactContains# c# x s0 of
         s4 -> (# s4, xInRegion #)
 {-# INLINE putInRegionIfNot# #-}
 
--- Ideally we could alloc just a cell, and not a full Ur here, as the Ur layer will be extracted and thrown away
-{-# NOINLINE _completeExtract #-}
-_completeExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) -> Ur (a, b)
-_completeExtract (Incomplete f) = case getRegion @r of
-  (Region (Compact c# _ (MVar m#))) -> unsafePerformIO . IO $ \s0 -> case takeMVar# m# s0 of
-    (# s1, () #) -> case compactAddShallow# @(Ur (a, b)) c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur)) s1 of
-      (# s2, rootReceiver #) -> case anyToAddr# rootReceiver s2 of
-        (# s3, pRootReceiver #) -> case getSlots1# rootReceiver s3 of
-          (# s4, (# d# #) #) -> case compactAddShallow# @(a, b) c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# '(,))) s4 of
-            (# s5, pair #) -> case assign# d# pair s5 of
-              (# s6, pPair #) -> case getSlots2# pair s6 of
-                (# s7, (# dRoot#, dCompanion# #) #) -> case putDebugLn# message ((# putMVar# m# () s7, () #)) of
-                  (# s8, () #) -> case f dRoot# s8 of
-                    (# s9, Ur companion #) -> case putInRegionIfNot# c# m# companion s9 of
-                      (# s10, companionInReg #) -> case assign# dCompanion# companionInReg s10 of
-                        (# s11, pCompanionInReg #) -> putDebugLn# message2 (# s11, _hide rootReceiver #)
-                          where
-                            message2 =
-                              ( "completeExtract/end: "
-                                  ++ (show . ptrToWord $ ptrD dCompanion#)
-                                  ++ " <- #"
-                                  ++ (show . ptrToWord $ Ptr pCompanionInReg)
-                                  ++ ": [companion in reg]"
-                              )
-                  where
-                    message =
-                      ( "completeExtract/start: [region] <- #"
-                          ++ (show . ptrToWord $ Ptr pRootReceiver)
-                          ++ ": Ur _@"
-                          ++ (show . ptrToWord $ ptrD d#)
-                          ++ "\ncompleteExtract/start: @"
-                          ++ (show . ptrToWord $ ptrD d#)
-                          ++ " <- #"
-                          ++ (show . ptrToWord $ Ptr pPair)
-                          ++ ": (,) _@"
-                          ++ (show . ptrToWord $ ptrD dRoot#)
-                          ++ " _@"
-                          ++ (show . ptrToWord $ ptrD dCompanion#)
-                      )
+fromRegExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) %1 -> Ur (a, b)
+fromRegExtract = toLinear _fromRegExtract
 
-{-# NOINLINE _complete #-}
-_complete :: forall r a. (RegionContext r) => Incomplete r a () -> Ur a
-_complete (Incomplete f) = case getRegion @r of
-  (Region (Compact c# _ (MVar m#))) -> unsafePerformIO . IO $ \s0 -> case takeMVar# m# s0 of
+{-# NOINLINE _fromRegExtract #-}
+_fromRegExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) -> Ur (a, b)
+_fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
+  (Region (Compact c# _ (MVar m#))) -> unsafeDupablePerformIO . IO $ \s0 -> case takeMVar# m# s0 of
+    (# s1, () #) -> case compactAddShallow# @(Ur (a, b)) c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur)) s1 of
+      (# s2, receiver #) -> case anyToAddr# receiver s2 of
+        (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
+          (# s4, (# d# #) #) -> case compactAddShallow# @(a, b) c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# '(,))) s4 of
+            (# s5, pair #) -> case affect# d# pair s5 of
+              (# s6, pPair# #) -> case getSlots2# pair s6 of
+                (# s7, (# dRoot#, dCompanion# #) #) -> case putMVar# m# () s7 of
+                  s8 -> case affect# dRoot# root s8 of
+                    (# s9, pRoot# #) -> case uCompanion of
+                      Ur companion -> case putInRegionIfNot# c# m# companion s9 of
+                        (# s10, companionInReg #) -> case affect# dCompanion# companionInReg s10 of
+                          (# s11, pCompanionInReg# #) -> putDebugLn# message (# s11, receiver #)
+                            where
+                              message =
+                                ( "fromRegExtract: [region] <- #"
+                                    ++ (show . ptrToWord $ Ptr pReceiver#)
+                                    ++ ": Ur _@"
+                                    ++ (show . ptrToWord $ ptrD d#)
+                                    ++ "\nfromRegExtract: @"
+                                    ++ (show . ptrToWord $ ptrD d#)
+                                    ++ " <- #"
+                                    ++ (show . ptrToWord $ Ptr pPair#)
+                                    ++ ": (,) _@"
+                                    ++ (show . ptrToWord $ ptrD dRoot#)
+                                    ++ " _@"
+                                    ++ (show . ptrToWord $ ptrD dCompanion#)
+                                    ++ "\nfromRegExtract: @"
+                                    ++ (show . ptrToWord $ ptrD dRoot#)
+                                    ++ " <- #"
+                                    ++ (show . ptrToWord $ Ptr pRoot#)
+                                    ++ ": [root]"
+                                    ++ "\nfromRegExtract: @"
+                                    ++ (show . ptrToWord $ ptrD dCompanion#)
+                                    ++ " <- #"
+                                    ++ (show . ptrToWord $ Ptr pCompanionInReg#)
+                                    ++ ": [companion]"
+                                )
+
+fromReg :: forall r a. (RegionContext r) => Incomplete r a () %1 -> Ur a
+fromReg = toLinear _fromReg
+
+{-# NOINLINE _fromReg #-}
+_fromReg :: forall r a. (RegionContext r) => Incomplete r a () -> Ur a
+_fromReg (Incomplete (root, ())) = case getRegion @r of
+  (Region (Compact c# _ (MVar m#))) -> unsafeDupablePerformIO . IO $ \s0 -> case takeMVar# m# s0 of
     (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
-      (# s2, rootReceiver #) -> case anyToAddr# rootReceiver s2 of
-        (# s3, pRootReceiver #) -> case getSlots1# rootReceiver s3 of
-          (# s4, (# d# #) #) -> case putDebugLn# message (# putMVar# m# () s4, () #) of
-            (# s5, () #) -> case f d# s5 of
-              (# s6, () #) -> (# s6, _hide rootReceiver #)
-            where
-              message =
-                ( "complete: [region] <- #"
-                    ++ (show . ptrToWord $ Ptr pRootReceiver)
-                    ++ ": Ur _@"
-                    ++ (show . ptrToWord $ ptrD d#)
-                )
+      (# s2, receiver #) -> case anyToAddr# receiver s2 of
+        (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
+          (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
+            s5 -> case affect# dRoot# root s5 of
+              (# s6, pRoot# #) ->  putDebugLn# message (# s6, receiver #)
+                where
+                  message =
+                    ( "fromReg: [region] <- #"
+                        ++ (show . ptrToWord $ Ptr pReceiver#)
+                        ++ ": Ur _@"
+                        ++ (show . ptrToWord $ ptrD dRoot#)
+                        ++ "\nfromRegExtract: @"
+                        ++ (show . ptrToWord $ ptrD dRoot#)
+                        ++ " <- #"
+                        ++ (show . ptrToWord $ Ptr pRoot#)
+                        ++ ": [root]"
+                    )
 
 -- TODO: should we add the redundant '(RegionContext r) =>' here?
 alloc :: forall r a. RegionToken r %1 -> Incomplete r a (Dest r a)
@@ -524,10 +555,20 @@ alloc = toLinear _alloc
 
 {-# INLINE _alloc #-}
 _alloc :: forall r a. RegionToken r -> Incomplete r a (Dest r a)
-_alloc _ =
-  Incomplete $
-    \d# s0 ->
-      (# s0, Dest d# #)
+_alloc (RegionToken (Region (Compact c# _ (MVar m#)))) = case indInfoPtr of
+  Ptr indInfoAddr# -> unsafeDupablePerformIO . IO $ \s0 -> case takeMVar# m# s0 of
+    (# s1, () #) -> case compactAddShallow# @a c# indInfoAddr# s1 of
+      (# s2, indRoot #) -> case anyToAddr# indRoot s2 of
+        (# s3, pIndRoot# #) -> case getSlots1# indRoot s3 of
+          (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
+            s5 -> putDebugLn# message (# s5, Incomplete (indRoot, Dest dRoot# ) #)
+              where
+                message =
+                  ( "alloc: [region] <- #"
+                      ++ (show . ptrToWord $ Ptr pIndRoot#)
+                      ++ ": IND _@"
+                      ++ (show . ptrToWord $ ptrD dRoot#)
+                  )
 
 -------------------------------------------------------------------------------
 -- Metaprogramming stuff for dests
@@ -557,19 +598,20 @@ instance (specCtor ~ LiftedCtorToSpecCtor liftedCtor a, GFill# liftedCtor specCt
   {-# INLINE fill #-}
 
 -- x must be already in the same region as the value, and fully evaluated
-assign# :: Dest# a -> a -> State# RealWorld -> (# State# RealWorld, Addr# #)
-assign# dest xInRegion s0 = case anyToAddr# xInRegion s0 of
-  (# s1, pX #) -> let s2 = writeAddrOffAddr# (unsafeCoerceAddr dest) 0# pX s1 in (# s2, pX #)
-{-# INLINE assign# #-}
+affect# :: Dest# a -> a -> State# RealWorld -> (# State# RealWorld, Addr# #)
+affect# dest xInRegion s0 = case anyToAddr# xInRegion s0 of
+  (# s1, pXInRegion# #) -> case writeAddrOffAddr# (unsafeCoerceAddr dest) 0# pXInRegion# s1 of
+    s2 -> (# s2, pXInRegion# #)
+{-# INLINE affect# #-}
 
 showFill :: Ptr Word -> Ptr Word -> String -> [Ptr Word] -> String
-showFill parentWriteLoc xAddr ctorName slots =
+showFill parentWriteLoc pX ctorName slots =
   "fill"
     ++ (show n)
     ++ ": @"
     ++ show (ptrToWord parentWriteLoc)
     ++ " <- #"
-    ++ show (ptrToWord xAddr)
+    ++ show (ptrToWord pX)
     ++ ": "
     ++ ctorName
     ++ " "
@@ -585,104 +627,104 @@ class GFill# liftedCtor (specCtor :: (Meta, [(Meta, Type)])) (a :: Type) where
 
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case putMVar# m# () s3 of
-              s4 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) []) (# s4, () #)
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case putMVar# m# () s3 of
+              s4 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) []) (# s4, () #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots1# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots1# xInRegion s3 of
               (# s4, (# d0# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#]) (# s5, (Dest d0# :: Dest r t0) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#]) (# s5, (Dest d0# :: Dest r t0) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots2# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots2# xInRegion s3 of
               (# s4, (# d0#, d1# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots3# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots3# xInRegion s3 of
               (# s4, (# d0#, d1#, d2# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots4# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots4# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots5# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots5# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots6# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots6# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4#, d5# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#, ptrD d5#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4, Dest d5# :: Dest r t5) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#, ptrD d5#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4, Dest d5# :: Dest r t5) #)
   {-# INLINE gFill# #-}
 
 -- TODO: add constraints on ds_i variables to ensure no unpacking
 instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5), '( 'MetaSel f6 u6 ss6 ds6, t6)]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5), '( 'MetaSel f6 u6 ss6 ds6, t6)]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ '( 'MetaSel f0 u0 ss0 ds0, t0), '( 'MetaSel f1 u1 ss1 ds1, t1), '( 'MetaSel f2 u2 ss2 ds2, t2), '( 'MetaSel f3 u3 ss3 ds3, t3), '( 'MetaSel f4 u4 ss4 ds4, t4), '( 'MetaSel f5 u5 ss5 ds5, t5), '( 'MetaSel f6 u6 ss6 ds6, t6)]) r #)
-  gFill# c# m# dest s0 =
+  gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
         case compactAddShallow# c# (unsafeCoerceAddr (reflectInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
-          (# s2, xInRegion #) -> case assign# dest xInRegion s2 of
-            (# s3, addr# #) -> case getSlots7# xInRegion s3 of
+          (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
+            (# s3, pXInRegion# #) -> case getSlots7# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4#, d5#, d6# #) #) -> case putMVar# m# () s4 of
-                s5 -> putDebugLn# (showFill (ptrD dest) (Ptr addr#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#, ptrD d5#, ptrD d6#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4, Dest d5# :: Dest r t5, Dest d6# :: Dest r t6) #)
+                s5 -> putDebugLn# (showFill (ptrD d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) [ptrD d0#, ptrD d1#, ptrD d2#, ptrD d3#, ptrD d4#, ptrD d5#, ptrD d6#]) (# s5, (Dest d0# :: Dest r t0, Dest d1# :: Dest r t1, Dest d2# :: Dest r t2, Dest d3# :: Dest r t3, Dest d4# :: Dest r t4, Dest d5# :: Dest r t5, Dest d6# :: Dest r t6) #)
   {-# INLINE gFill# #-}
 
 type family Length (a :: [k]) :: Nat where
