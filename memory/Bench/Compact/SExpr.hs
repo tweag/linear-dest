@@ -3,11 +3,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE LinearTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Bench.Compact.SExpr where
 
@@ -18,181 +21,199 @@ import Data.Char (isSpace)
 import GHC.Generics (Generic)
 import Prelude.Linear
 import Text.Read (readMaybe)
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as BSC
+import Data.Unrestricted.Linear (Consumable (consume), Dupable (dup2), Movable (move))
 import qualified Prelude as NonLinear
 
-loadSampleData :: IO String
-loadSampleData = readFile "memory/Bench/Compact/test_data.sexpr"
+loadSampleData :: IO ByteString
+loadSampleData = BSC.readFile "memory/Bench/Compact/test_data.sexpr"
 
 data SExpr
-  = SList [SExpr]
-  | SFloat Float
-  | SInteger Int
-  | SString String
-  | SSymbol String
+  = SList Int [SExpr]
+  | SInteger Int Int
+  | SString Int String
+  | SSymbol Int String
   deriving (NonLinear.Eq, Generic, NFData)
 
-showSExpr :: Bool -> Int -> SExpr %1 -> String
+{-# INLINE endPos #-}
+endPos :: SExpr -> Int
+endPos = \case
+  SList n _ -> n
+  SInteger n _ -> n
+  SString n _ -> n
+  SSymbol n _ -> n
+
+showSExpr :: Bool -> Int -> SExpr -> String
 showSExpr cont indent = \case
-  SList [] -> makeIndent cont indent ++ "()"
-  SList (x : xs) ->
+  SList _ [] -> makeIndent cont indent ++ "()"
+  SList _ (x : xs) ->
     makeIndent cont indent
       ++ "("
       ++ showSExpr True (indent + 1) x
-      ++ concatMap (\x' -> "\n" ++ showSExpr False (indent + 1) x') xs
+      ++ NonLinear.concatMap (\x' -> "\n" ++ showSExpr False (indent + 1) x') xs
       ++ ")"
-  SFloat f -> makeIndent cont indent ++ show f
-  SInteger i -> makeIndent cont indent ++ show i
-  SString s -> makeIndent cont indent ++ show s
-  SSymbol s -> makeIndent cont indent ++ s
+  SInteger _ i -> makeIndent cont indent ++ show i
+  SString _ s -> makeIndent cont indent ++ show s
+  SSymbol _ s -> makeIndent cont indent ++ s
   where
     makeIndent isCont n = if isCont then "" else replicate n ' '
 
 instance Show SExpr where
   show x = showSExpr False 0 x
 
-data SContext
-  = NotInSList
-  | InSList [SExpr]
-  deriving (Generic, NFData)
-
-data DSContext r
-  = DNotInSList (Dest r SExpr)
-  | DInSList (Dest r [SExpr])
-
 data SExprParseError
-  = UnexpectedClosingParen String
-  | UnexpectedEOFSExpr
-  | UnexpectedEOFSList (Maybe [SExpr])
-  | UnexpectedEOFSString Bool (Maybe String)
-  | UnexpectedContentAfter SExpr (Maybe String)
+  = UnexpectedClosingParen Int
+  | UnexpectedEOFSExpr Int
+  | UnexpectedEOFSList Int
+  | UnexpectedEOFSString Int
+  | UnexpectedContentAfter Int
   deriving (NonLinear.Eq, Generic, NFData)
+
+errEndPos :: SExprParseError -> Int
+errEndPos = \case
+  UnexpectedClosingParen n -> n
+  UnexpectedEOFSExpr n -> n
+  UnexpectedEOFSList n -> n
+  UnexpectedEOFSString n -> n
+  UnexpectedContentAfter n -> n
+
+instance Consumable SExprParseError where
+  consume = \case
+    UnexpectedClosingParen n -> consume n
+    UnexpectedEOFSExpr n -> consume n
+    UnexpectedEOFSList n -> consume n
+    UnexpectedEOFSString n -> consume n
+    UnexpectedContentAfter n -> consume n
+
+instance Dupable SExprParseError where
+  dup2 = \case
+    UnexpectedClosingParen n -> let !(n1, n2) = dup2 n in (UnexpectedClosingParen n1, UnexpectedClosingParen n2)
+    UnexpectedEOFSExpr n -> let !(n1, n2) = dup2 n in (UnexpectedEOFSExpr n1, UnexpectedEOFSExpr n2)
+    UnexpectedEOFSList n -> let !(n1, n2) = dup2 n in (UnexpectedEOFSList n1, UnexpectedEOFSList n2)
+    UnexpectedEOFSString n -> let !(n1, n2) = dup2 n in (UnexpectedEOFSString n1, UnexpectedEOFSString n2)
+    UnexpectedContentAfter n -> let !(n1, n2) = dup2 n in (UnexpectedContentAfter n1, UnexpectedContentAfter n2)
+
+instance Movable SExprParseError where
+  move = \case
+    UnexpectedClosingParen n -> let !(Ur n') = move n in Ur (UnexpectedClosingParen n')
+    UnexpectedEOFSExpr n -> let !(Ur n') = move n in Ur (UnexpectedEOFSExpr n')
+    UnexpectedEOFSList n -> let !(Ur n') = move n in Ur (UnexpectedEOFSList n')
+    UnexpectedEOFSString n -> let !(Ur n') = move n in Ur (UnexpectedEOFSString n')
+    UnexpectedContentAfter n -> let !(Ur n') = move n in Ur (UnexpectedContentAfter n')
 
 instance Show SExprParseError where
   show = \case
-    UnexpectedClosingParen remaining ->
-      "Parse error: Encountered an unexpected closing parentheses in:\n"
-        ++ remaining
-    UnexpectedEOFSExpr -> "Parse error: Ecountered EOF while expecting an SExpr."
-    UnexpectedEOFSList mContext ->
-      "Parse error: Encountered EOF in the middle of parsing an SList.\n"
-        ++ ifAvailableShow mContext "\n"
-    UnexpectedEOFSString escaped mContext ->
-      "Parse error: Encountered EOF in the middle of parsing a quoted string\n"
-        ++ "Escape mode for next character: "
-        ++ (if escaped then "on" else "off")
-        ++ ifAvailableShow mContext "\nThese chars have been parsed so far: "
-    UnexpectedContentAfter parsedExpr mContext ->
-      "Parse error: This SExpr has been successfully parsed:\n"
-        ++ show parsedExpr
-        ++ "\nBut some unexpected content is present after"
-        ++ ifAvailableShow mContext ":\n"
-    where
-      ifAvailableShow :: (Show a) => Maybe a -> String -> String
-      ifAvailableShow mContext header = case mContext of
-        Nothing -> ""
-        Just c -> header ++ show c
-
-readStringWithoutDest :: String -> Bool -> String -> Either SExprParseError (SExpr, String)
-readStringWithoutDest = \cases
-  acc escaped [] -> Left $ UnexpectedEOFSString escaped (Just acc)
-  acc True ('n' : xs) -> readStringWithoutDest ('\n' : acc) False xs -- TODO: add other escape chars
-  acc False ('\\' : xs) -> readStringWithoutDest acc True xs
-  acc False ('"' : xs) -> Right $ (SString $ reverse acc, xs)
-  acc _ (x : xs) -> readStringWithoutDest (x : acc) False xs
-
-parseWithoutDest' :: SContext -> String -> Either SExprParseError (SExpr, String)
-parseWithoutDest' = \cases
-  NotInSList [] -> Left $ UnexpectedEOFSExpr
-  (InSList exprs) [] -> Left $ UnexpectedEOFSList (Just exprs)
-  ctx s@(x : xs) -> case x of
-    '(' -> appendOrRet ctx $ parseWithoutDest' (InSList []) xs
-    ')' -> case ctx of
-      InSList exprs -> Right (SList $ reverse exprs, xs)
-      NotInSList -> Left $ UnexpectedClosingParen s
-    '"' -> appendOrRet ctx $ readStringWithoutDest [] False xs
-    _ ->
-      if isSpace x
-        then parseWithoutDest' ctx xs
-        else case splitOnSep s of
-          (raw, remaining) -> case readMaybe @Int raw of
-            Just int -> appendOrRet ctx $ Right (SInteger int, remaining)
-            Nothing -> case readMaybe @Float raw of
-              Just float -> appendOrRet ctx $ Right (SFloat float, remaining)
-              Nothing -> appendOrRet ctx $ Right (SSymbol raw, remaining)
-    where
-      splitOnSep = NonLinear.break (\c -> isSpace c || c `NonLinear.elem` ['(', ')', '"'])
-      appendOrRet :: SContext -> Either SExprParseError (SExpr, String) -> Either SExprParseError (SExpr, String)
-      appendOrRet = \cases
-        (InSList exprs) (Right (expr, remaining)) -> parseWithoutDest' (InSList $ expr : exprs) remaining
-        _ res -> res -- left is Nothing or right is error
-
-parseWithoutDest :: String -> Either SExprParseError SExpr
-parseWithoutDest s = case parseWithoutDest' NotInSList s of
-  Right (expr, remaining) | NonLinear.all isSpace remaining -> Right expr
-  Right (expr, remaining) -> Left $ UnexpectedContentAfter expr (Just remaining)
-  Left err -> Left err
+    UnexpectedClosingParen n -> "Parse error: Encountered an unexpected closing parentheses at position " ++ show n
+    UnexpectedEOFSExpr n -> "Parse error: Ecountered EOF while expecting an SExpr at position " ++ show n
+    UnexpectedEOFSList n -> "Parse error: Encountered EOF in the middle of parsing an SList at position " ++ show n
+    UnexpectedEOFSString n -> "Parse error: Encountered EOF in the middle of parsing a quoted string at position " ++ show n
+    UnexpectedContentAfter n -> "Parse error: Encountered unexpected content after the SExpr at position " ++ show n
 
 defaultSExpr :: SExpr
-defaultSExpr = SInteger 0
+defaultSExpr = SInteger (-1) 0
 
-readStringUsingDest :: forall r. (RegionContext r) => Dest r String %1 -> Bool -> String -> Either (Ur SExprParseError) String
-readStringUsingDest = \cases
-  d escaped [] -> d & fill @'[] `lseq` Left (Ur $ UnexpectedEOFSString escaped Nothing)
-  d True ('n' : xs) -> case d & fill @'(:) of (dx, dxs) -> dx & fillLeaf '\n' `lseq` readStringUsingDest dxs False xs -- TODO: add other escape chars
-  d False ('\\' : xs) -> readStringUsingDest d True xs
-  d False ('"' : xs) -> d & fill @'[] `lseq` Right xs
-  d _ (x : xs) -> case d & fill @'(:) of (dx, dxs) -> dx & fillLeaf x `lseq` readStringUsingDest dxs False xs
+nextTokenAt :: Int -> ByteString -> ByteString
+nextTokenAt i bs = fst $ BSC.span (\c -> not (isSpace c) && c /= '(' && c /= ')' && c /= '"') (snd $ BSC.splitAt i bs)
 
-parseUsingDest' :: forall r. (RegionContext r) => DSContext r %1 -> String -> Either (Ur SExprParseError) String
-parseUsingDest' = \cases
-  (DNotInSList d) [] -> d & fillLeaf defaultSExpr `lseq` Left $ Ur UnexpectedEOFSExpr
-  (DInSList d) [] -> d & fill @'[] `lseq` Left (Ur $ UnexpectedEOFSList Nothing)
-  ctx s@(x : xs) -> case x of
-    '(' -> appendOrRet ctx contClosingParen xs
-    ')' -> case ctx of
-      DInSList d -> d & fill @'[] `lseq` Right xs
-      DNotInSList d -> d & fillLeaf defaultSExpr `lseq` Left (Ur $ UnexpectedClosingParen s)
-    '"' -> appendOrRet ctx contClosingQuote xs
+parseStringWithoutDest' :: ByteString -> Int -> Bool -> [Char] -> Either SExprParseError SExpr
+parseStringWithoutDest' bs i escape acc = case bs BSC.!? i of
+  Nothing -> Left $ UnexpectedEOFSString i
+  Just c -> case c of
+    '"' | not escape -> Right $ SString i (reverse acc)
+    '\\' | not escape -> parseStringWithoutDest' bs (i + 1) True acc
+    'n' | escape -> parseStringWithoutDest' bs (i + 1) False ('\n' : acc)
+    _ -> parseStringWithoutDest' bs (i + 1) False (c : acc)
+
+parseStringWithDest' :: RegionContext r => ByteString -> Int -> Bool -> Dest r Int %1 -> Dest r [Char] %1 -> Either SExprParseError Int
+parseStringWithDest' bs i escape dEndPos d = case bs BSC.!? i of
+  Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSString i
+  Just c -> case c of
+    '"' | not escape -> dEndPos & fillLeaf i `lseq` d & fill @'[] `lseq` Right i
+    '\\' | not escape -> parseStringWithDest' bs (i + 1) True dEndPos d
+    'n' | escape -> let !(dh, dt) = d & fill @'(:) in dh & fillLeaf '\n' `lseq` parseStringWithDest' bs (i + 1) False dEndPos dt
+    _ -> let !(dh, dt) = d & fill @'(:) in dh & fillLeaf c `lseq` parseStringWithDest' bs (i + 1) False dEndPos dt
+
+parseListWithoutDest' :: ByteString -> Int -> [SExpr] -> Either SExprParseError SExpr
+parseListWithoutDest' bs i acc = case bs BSC.!? i of
+  Nothing -> Left $ UnexpectedEOFSList i
+  Just c -> \cases
+    | c == ')' -> Right $ SList i (reverse acc)
+    -- we need this case for final spaces before the closing paren
+    -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
+    | isSpace c -> parseListWithoutDest' bs (i + 1) acc
+    | otherwise -> case parseWithoutDest' bs i of
+        Left err -> Left err
+        Right children -> parseListWithoutDest' bs (endPos children + 1) (children : acc)
+
+parseListWithDest' :: RegionContext r => ByteString -> Int -> Dest r Int %1 -> Dest r [SExpr] %1 -> Either SExprParseError Int
+parseListWithDest' bs i dEndPos d = case bs BSC.!? i of
+  Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSList i
+  Just c -> \cases
+    | c == ')' -> dEndPos & fillLeaf i `lseq` d & fill @'[] `lseq` Right i
+    -- we need this case for final spaces before the closing paren
+    -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
+    | isSpace c -> parseListWithDest' bs (i + 1) dEndPos d 
+    | otherwise -> let !(dh, dt) = d & fill @'(:) in case parseWithDest' bs i dh of
+        Left err -> dEndPos & fillLeaf (-1) `lseq` dt & fill @'[] `lseq` Left err
+        Right childrenEndPos -> parseListWithDest' bs (childrenEndPos + 1) dEndPos dt
+
+parseWithoutDest' :: ByteString -> Int -> Either SExprParseError SExpr
+parseWithoutDest' bs i = case bs BSC.!? i of
+  Nothing -> Left $ UnexpectedEOFSExpr i
+  Just c -> case c of
+    ')' -> Left $ UnexpectedClosingParen i
+    '(' -> parseListWithoutDest' bs (i + 1) []
+    '"' -> parseStringWithoutDest' bs (i + 1) False []
     _ ->
-      if isSpace x
-        then parseUsingDest' ctx xs
-        else case splitOnSep s of
-          (raw, remaining) -> case readMaybe @Int raw of
-            Just int -> appendOrRet ctx (contInt int) remaining
-            Nothing -> case readMaybe @Float raw of
-              Just float -> appendOrRet ctx (contFloat float) remaining
-              Nothing -> appendOrRet ctx (contSymbol raw) remaining
-    where
-      contClosingParen :: Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String
-      contClosingParen = (\dExpr -> parseUsingDest' (DInSList $ dExpr & fill @'SList))
-      contClosingQuote :: Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String
-      contClosingQuote = (\dExpr -> readStringUsingDest (dExpr & fill @'SString) False)
-      contInt :: Int %1 -> Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String
-      contInt = (\int dExpr -> dExpr & fill @'SInteger & fillLeaf int `lseq` Right)
-      contFloat :: Float %1 -> Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String
-      contFloat = (\float dExpr -> dExpr & fill @'SFloat & fillLeaf float `lseq` Right)
-      contSymbol :: String %1 -> Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String
-      contSymbol = (\raw dExpr -> dExpr & fill @'SSymbol & fillLeaf raw `lseq` Right)
-      splitOnSep :: String -> (String, String)
-      splitOnSep = NonLinear.break (\c -> isSpace c || c `NonLinear.elem` ['(', ')', '"'])
-      appendOrRet :: DSContext r %1 -> (Dest r SExpr %1 -> String -> Either (Ur SExprParseError) String) %1 -> String -> Either (Ur SExprParseError) String
-      appendOrRet context f str = case context of
-        DNotInSList d -> f d str
-        DInSList d ->
-          case d & fill @'(:) of
-            (dExpr, dRem) -> case f dExpr str of
-              Right str' -> parseUsingDest' (DInSList dRem) str'
-              Left err -> dRem & fill @'[] `lseq` Left err
+      let token = nextTokenAt i bs
+       in if BSC.null token
+            -- c is a (leading) space because we matched against the other cases before
+            then parseWithoutDest' bs (i + 1)
+            else case BSC.readInt token of
+              Just (int, remaining) | BSC.null remaining -> Right $ SInteger (i + BSC.length token - 1) int
+              _ -> Right $ SSymbol (i + BSC.length token - 1) (BSC.unpack token)
 
-parseUsingDest :: String -> Either SExprParseError SExpr
-parseUsingDest str =
-  case withRegion $ \r ->
-    case fromRegExtract $ (alloc r) <&> DNotInSList <&> flip parseUsingDest' str <&> finalizeResults of
-      Ur (expr, Right ()) -> Ur (Right expr)
-      Ur (expr, Left errFn) -> Ur (Left $ errFn expr) of
-    Ur res -> res
-  where
-    finalizeResults :: Either (Ur SExprParseError) String %1 -> Ur (Either (SExpr -> SExprParseError) ())
-    finalizeResults = \case
-      Right s -> move s & \case Ur s' -> if NonLinear.all isSpace s' then Ur (Right ()) else Ur (Left $ \expr -> UnexpectedContentAfter expr (Just s'))
-      Left (Ur err) -> Ur (Left $ const err)
+parseWithDest' :: RegionContext r => ByteString -> Int -> Dest r SExpr %1 -> Either SExprParseError Int
+parseWithDest' bs i d = case bs BSC.!? i of
+  Nothing -> d & fillLeaf defaultSExpr `lseq` Left $ UnexpectedEOFSExpr i
+  Just c -> case c of
+    ')' -> d & fillLeaf defaultSExpr `lseq` Left $ UnexpectedClosingParen i
+    '(' -> let !(dEndPos, dList) = d & fill @'SList in parseListWithDest' bs (i + 1) dEndPos dList
+    '"' -> let !(dEndPos, dStr) = d & fill @'SString in parseStringWithDest' bs (i + 1) False dEndPos dStr
+    _ ->
+      let token = nextTokenAt i bs
+       in if BSC.null token
+            -- c is a (leading) space because we matched against the other cases before
+            then parseWithDest' bs (i + 1) d
+            else case BSC.readInt token of
+              Just (int, remaining) | BSC.null remaining ->
+                let !(dEndPos, dInt) = d & fill @'SInteger
+                    endPos = i + BSC.length token - 1
+                 in dEndPos & fillLeaf endPos `lseq` dInt & fillLeaf int `lseq` Right endPos
+              _ ->
+                let !(dEndPos, dSym) = d & fill @'SSymbol 
+                    endPos = i + BSC.length token - 1
+                 in dEndPos & fillLeaf endPos `lseq` dSym & fillLeaf (BSC.unpack token) `lseq` Right endPos
+
+parseWithoutDest :: ByteString -> Either SExprParseError SExpr
+parseWithoutDest bs = case parseWithoutDest' bs 0 of
+  Left err -> Left err
+  Right sexpr -> let i = endPos sexpr in if
+      | i >= BSC.length bs - 1 -> Right sexpr
+      | rem <- snd (BSC.splitAt (i + 1) bs), BSC.all isSpace rem -> Right sexpr
+      | otherwise -> Left $ UnexpectedContentAfter (i + 1)
+
+parseWithDest :: ByteString -> Either SExprParseError SExpr
+parseWithDest bs =
+  let Ur (sexpr, res) =
+        withRegion $ \r ->
+          fromRegExtract $
+            alloc r <&> \d ->
+              move $ parseWithDest' bs 0 d
+   in case res of
+        Left err -> Left err
+        Right i -> if
+            | i >= BSC.length bs - 1 -> Right sexpr
+            | rem <- snd (BSC.splitAt (i + 1) bs), BSC.all isSpace rem -> Right sexpr
+            | otherwise -> Left $ UnexpectedContentAfter (i + 1)

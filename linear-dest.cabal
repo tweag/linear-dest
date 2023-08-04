@@ -153,6 +153,7 @@ benchmark memory
     ghc-options:      -prof -threaded -O2 -rtsopts -with-rtsopts=-N
     build-depends:
         base,
+        bytestring,
         deepseq,
         ghc-compact,
         linear-dest,

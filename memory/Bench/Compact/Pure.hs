@@ -19,8 +19,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       return . id . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       return . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfIO with return/force"
@@ -29,8 +29,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       return . force . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       return . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfIO with return/rnf"
@@ -39,8 +39,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       return . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       return . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfIO with evaluate/id"
@@ -49,8 +49,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       evaluate . id . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       evaluate . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfIO with evaluate/force"
@@ -59,8 +59,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       evaluate . force . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       evaluate . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfIO with evaluate/rnf"
@@ -69,8 +69,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . whnfIO $ do
-        --       evaluate . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . whnfIO $ do
+        --       evaluate . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with return/id"
@@ -79,8 +79,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       return . id . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       return . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with return/force"
@@ -89,8 +89,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       return . force . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       return . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with return/rnf"
@@ -99,8 +99,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       return . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       return . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with evaluate/id"
@@ -109,8 +109,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       evaluate . id . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       evaluate . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with evaluate/force"
@@ -119,8 +119,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       evaluate . force . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       evaluate . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfIO with evaluate/rnf"
@@ -129,8 +129,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . nfIO $ do
-        --       evaluate . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . nfIO $ do
+        --       evaluate . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfAppIO with return/id"
@@ -139,8 +139,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . id . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+        --       return . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfAppIO with return/force"
@@ -149,8 +149,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . force . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+        --       return . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfAppIO with return/rnf"
@@ -159,8 +159,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+        --       return . rnf . parseWithDest $ sampleData
         --   ],
         bgroup
           "whnfAppIO with evaluate/id"
@@ -169,8 +169,8 @@ benchmarks =
               resInRegion <- compact res
               evaluate . id . getCompact $ resInRegion
             ,
-            bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-              evaluate . id . parseUsingDest $ sampleData
+            bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+              evaluate . id . parseWithDest $ sampleData
           ]
         -- bgroup
         --   "whnfAppIO with evaluate/force"
@@ -179,8 +179,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . force . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+        --       evaluate . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "whnfAppIO with evaluate/rnf"
@@ -189,8 +189,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+        --       evaluate . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with return/id"
@@ -199,8 +199,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . id . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       return . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with return/force"
@@ -209,8 +209,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . force . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       return . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with return/rnf"
@@ -219,8 +219,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       return . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       return . rnf . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with evaluate/id"
@@ -229,8 +229,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . id . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . id . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       evaluate . id . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with evaluate/force"
@@ -239,8 +239,8 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . force . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . force . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       evaluate . force . parseWithDest $ sampleData
         --   ],
         -- bgroup
         --   "nfAppIO with evaluate/rnf"
@@ -249,7 +249,7 @@ benchmarks =
         --       resInRegion <- compact res
         --       evaluate . rnf . getCompact $ resInRegion
         --     ,
-        --     bench "using dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . rnf . parseUsingDest $ sampleData
+        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
+        --       evaluate . rnf . parseWithDest $ sampleData
         --   ]
       ]

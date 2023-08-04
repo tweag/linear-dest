@@ -22,7 +22,7 @@ import GHC.Exts
 import Unsafe.Coerce (unsafeCoerceAddr)
 
 -- run with
--- cabal run -w /home/tbagrel/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts'
+-- cabal run -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts'
 
 main :: IO ()
 main = do

@@ -5,8 +5,8 @@ PATTERN = """        bgroup
               resInRegion <- compact res
               {monadLayer} . {pureLayer} . getCompact $ resInRegion
             ,
-            bench "using dest" . {methodLineCont}
-              {monadLayer} . {pureLayer} . parseUsingDest $ sampleData
+            bench "with dest" . {methodLineCont}
+              {monadLayer} . {pureLayer} . parseWithDest $ sampleData
           ],"""
 
 
