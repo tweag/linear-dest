@@ -9,31 +9,36 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE UnboxedTuples #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Main (main) where
 
+import System.Environment
 import Compact.Pure
+import Compact.Pure.SExpr
 import Control.Functor.Linear ((<&>))
-import Prelude.Linear
+import Control.DeepSeq (force)
+import Control.Exception (evaluate)
 import GHC.Exts
 import Unsafe.Coerce (unsafeCoerceAddr)
+import GHC.Compact (compact, getCompact)
 
 -- run with
--- cabal run -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts'
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' exe:dump -- +RTS -s -RTS runParseWithoutDest
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' exe:dump -- +RTS -s -RTS runParseWithDest
 
 main :: IO ()
 main = do
-  let !list =
-        case withRegion $ \r ->
-          fromReg $ alloc r <&> \d -> go 0 1000 d of
-            Ur l -> l
-      go :: forall r. RegionContext r => Int -> Int -> Dest r [Int] %1 -> ()
-      go i n d =
-        if i < n
-          then case d & fill @'(:) of
-                 (dx, dl) -> (dx & fillLeaf i) `lseq` go (i + 1) n dl
-          else d & fill @'[]
-   in putStrLn (show $ head (tail list))
+  args <- getArgs
+  !sampleData <- evaluate =<< force <$> loadSampleData
+  res <- case args of
+    "runParseWithoutDest" : _ -> do
+      let res = parseWithoutDest sampleData
+      compResInRegion <- compact res
+      evaluate . getCompact $ compResInRegion
+    "runParseWithDest" : _ -> do
+      evaluate . parseWithDest $ sampleData
+  putStrLn $ case res of
+    Right _ -> "Done!"
+    _ -> "Error!"

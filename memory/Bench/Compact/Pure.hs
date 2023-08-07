@@ -1,6 +1,6 @@
 module Bench.Compact.Pure (benchmarks) where
 
-import Bench.Compact.SExpr
+import Compact.Pure.SExpr
 import GHC.Compact (compact, getCompact)
 import Test.Tasty.Bench
 import Control.DeepSeq (force, rnf)

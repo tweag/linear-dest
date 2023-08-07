@@ -3,7 +3,7 @@
 module Main (main) where
 
 import qualified Bench.Compact.Pure as Compact
-import Bench.Compact.SExpr
+import Compact.Pure.SExpr
 import Control.DeepSeq (rnf, force)
 import Control.Exception (evaluate)
 import System.Environment
@@ -15,16 +15,13 @@ import Data.ByteString.Char8 (ByteString)
 import Data.Either (isRight)
 
 -- Launch regular benchmark with
--- stack bench linear-dest:bench:memory --ghc-options '-threaded -O2 -rtsopts' --ba '+RTS -T -N1 -RTS'
--- cabal bench -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
 
 -- Profile parseWithoutDest with
--- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
--- cabal bench -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
 
 -- Profile parseWithDest with
--- stack bench --library-profiling --executable-profiling --ghc-options '-threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --ba '+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
--- cabal bench -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --enable-library-profiling --enable-executable-profiling --ghc-options='-prof -threaded -O2 -rtsopts -fprof-late' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
 
 -- remove useless lines in profiling results with
 -- .*?0\.0    0\.0     0\.0    0\.0\n

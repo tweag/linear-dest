@@ -36,7 +36,7 @@ compactPureTests =
 -- Launch with
 
 -- $ stack test
--- cabal test -w /home/tbagrel/tweag/ghc2/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' --test-options='+RTS -N -RTS'
+-- cabal test -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' --test-options='+RTS -N -RTS'
 
 data Foo a b = MkFoo {unBar :: a, unBaz :: (b, b), unBoo :: a} deriving (Eq, Generic, Show)
 

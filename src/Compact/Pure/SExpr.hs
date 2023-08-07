@@ -12,9 +12,9 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
-module Bench.Compact.SExpr where
+module Compact.Pure.SExpr where
 
-import Compact.Pure
+import Compact.Pure.Internal
 import Control.DeepSeq (NFData)
 import Control.Functor.Linear ((<&>))
 import Data.Char (isSpace)
@@ -27,7 +27,7 @@ import Data.Unrestricted.Linear (Consumable (consume), Dupable (dup2), Movable (
 import qualified Prelude as NonLinear
 
 loadSampleData :: IO ByteString
-loadSampleData = BSC.readFile "memory/Bench/Compact/test_data.sexpr"
+loadSampleData = BSC.readFile "src/Compact/Pure/test_data.sexpr"
 
 data SExpr
   = SList Int [SExpr]
