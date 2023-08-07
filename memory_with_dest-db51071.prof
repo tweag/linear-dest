@@ -1,0 +1,70 @@
+	Mon Aug  7 15:05 2023 Time and Allocation Profiling Report  (Final)
+
+	   memory +RTS -N -p -N1 -RTS runParseWithDest
+
+	total time  =        0.03 secs   (26 ticks @ 1000 us, 1 processor)
+	total alloc =  13,828,072 bytes  (excludes profiling overheads)
+
+COST CENTRE                                   MODULE                        SRC                                                             %time %alloc
+
+parseStringWithDest'_$s$wparseStringWithDest' Compact.Pure.SExpr            src/Compact/Pure/SExpr.hs:129:1-20                               23.1    8.6
+$wunpackAppendCharsLazy                       Data.ByteString.Internal.Type libraries/bytestring/Data/ByteString/Internal/Type.hs:498:1-21   23.1    0.0
+$wloop1                                       Data.ByteString.Internal.Type <no location info>                                               15.4   56.6
+$wnextTokenAt                                 Compact.Pure.SExpr            src/Compact/Pure/SExpr.hs:117:1-11                               11.5    0.0
+$wgo                                          Compact.Pure.SExpr            <no location info>                                               11.5    0.0
+$wparseWithDest'                              Compact.Pure.SExpr            src/Compact/Pure/SExpr.hs:178:1-14                                7.7   17.3
+$wparseListWithDest'                          Compact.Pure.SExpr            src/Compact/Pure/SExpr.hs:150:1-18                                3.8   13.8
+$wisSpace                                     GHC.Unicode                   libraries/base/GHC/Unicode.hs:231:1-7                             3.8    0.0
+getContents5                                  Data.ByteString               <no location info>                                                0.0    2.6
+
+
+                                                                                                                                                                                                                                individual      inherited
+COST CENTRE                                             MODULE                                                       SRC                                                                                    no.      entries  %time %alloc   %time %alloc
+
+MAIN                                                    MAIN                                                         <built-in>                                                                              353           0    0.0    0.0   100.0  100.0
+ ensureIOManagerIsRunning                               GHC.Conc.IO                                                  libraries/base/GHC/Conc/IO.hs:76:1-24                                                   706           1    0.0    0.0     0.0    0.1
+  ensureIOManagerIsRunning1                             GHC.Event.Thread                                             <no location info>                                                                      707           1    0.0    0.0     0.0    0.1
+   $wwithMVar                                           GHC.Conc.Sync                                                <no location info>                                                                      711           1    0.0    0.0     0.0    0.1
+    ensureIOManagerIsRunning6                           GHC.Event.Thread                                             <no location info>                                                                      712           1    0.0    0.0     0.0    0.1
+     $wstartIOManagerThread                             GHC.Event.Thread                                             <no location info>                                                                      717           1    0.0    0.0     0.0    0.1
+      new2                                              GHC.Event.Manager                                            <no location info>                                                                      719           1    0.0    0.0     0.0    0.1
+       $wxs                                             GHC.Event.Manager                                            <no location info>                                                                      720          32    0.0    0.1     0.0    0.1
+ main                                                   Main                                                         memory/Main.hs:36:1-4                                                                   792           1    0.0    0.0   100.0   99.5
+  main2                                                 Main                                                         <no location info>                                                                      793           1    0.0    0.0   100.0   99.5
+   runMainIO1                                           GHC.TopHandler                                               <no location info>                                                                      794           1    0.0    0.0   100.0   99.5
+    main1                                               Main                                                         <no location info>                                                                      800           1    0.0    0.0   100.0   99.5
+     parseWithDest                                      Compact.Pure.SExpr                                           src/Compact/Pure/SExpr.hs:208:1-13                                                      943           1    0.0    0.0    88.5   96.7
+      _withRegion                                       Compact.Pure.Internal                                        src/Compact/Pure/Internal.hs:413:1-11                                                   944           1    0.0    0.0    88.5   96.7
+       $wparseWithDest'                                 Compact.Pure.SExpr                                           src/Compact/Pure/SExpr.hs:178:1-14                                                      949       40801    7.7   17.3    88.5   96.7
+        $wparseListWithDest'                            Compact.Pure.SExpr                                           src/Compact/Pure/SExpr.hs:150:1-18                                                      950      119645    3.8   13.8     3.8   13.8
+        parseStringWithDest'_$s$wparseStringWithDest'   Compact.Pure.SExpr                                           src/Compact/Pure/SExpr.hs:129:1-20                                                      958       66560   23.1    8.6    23.1    8.6
+        readInt                                         Data.ByteString.Char8                                        libraries/bytestring/Data/ByteString/Char8.hs:1000:1-7                                  954       20960    0.0    0.0     0.0    0.4
+         readInt_$s$wloop1                              Data.ByteString.Char8                                        libraries/bytestring/Data/ByteString/Char8.hs:1009:11-14                                955       20960    0.0    0.4     0.0    0.4
+        $wunpackAppendCharsLazy                         Data.ByteString.Internal.Type                                libraries/bytestring/Data/ByteString/Internal/Type.hs:498:1-21                          956       20320   23.1    0.0    38.5   56.6
+         $wloop1                                        Data.ByteString.Internal.Type                                <no location info>                                                                      957      215840   15.4   56.6    15.4   56.6
+     withBinaryFile1                                    GHC.IO.Handle.FD                                             <no location info>                                                                      837           1    0.0    0.0     0.0    2.8
+      openBinaryFile3                                   GHC.IO.Handle.FD                                             <no location info>                                                                      838           1    0.0    0.0     0.0    2.8
+       openFile4                                        GHC.IO.FD                                                    <no location info>                                                                      839           1    0.0    0.0     0.0    2.8
+        fileType4                                       System.Posix.Internals                                       <no location info>                                                                      840           1    0.0    0.0     0.0    2.8
+         bracket1                                       GHC.IO                                                       <no location info>                                                                      844           1    0.0    0.0     0.0    2.8
+          $wallocaBytesAligned                          Foreign.Marshal.Alloc                                        <no location info>                                                                      850           1    0.0    0.0     0.0    2.8
+           fdToHandle6                                  GHC.IO.Handle.FD                                             <no location info>                                                                      873           1    0.0    0.0     0.0    0.1
+            mkFileHandleNoFinalizer1                    GHC.IO.Handle.Internals                                      <no location info>                                                                      874           1    0.0    0.0     0.0    0.1
+             $wmkHandleMVar                             GHC.IO.Handle.Internals                                      <no location info>                                                                      875           1    0.0    0.1     0.0    0.1
+              newBuffer                                 GHC.IO.BufferedIO                                            libraries/base/GHC/IO/BufferedIO.hs:42:3-62                                             876           1    0.0    0.0     0.0    0.1
+               $fBufferedIOFD                           GHC.IO.FD                                                    libraries/base/GHC/IO/FD.hs:145:10-22                                                   878           0    0.0    0.0     0.0    0.1
+                $fBufferedIOFD14                        GHC.IO.FD                                                    <no location info>                                                                      879           1    0.0    0.1     0.0    0.1
+           mask3                                        GHC.IO                                                       <no location info>                                                                      884           1    0.0    0.0     0.0    2.6
+            readFile2                                   Data.ByteString                                              <no location info>                                                                      885           1    0.0    0.0     0.0    2.6
+             getContents5                               Data.ByteString                                              <no location info>                                                                      899           1    0.0    2.6     0.0    2.6
+ CAF                                                    GHC.IO.Handle.FD                                             <entire-module>                                                                         596           0    0.0    0.0     0.0    0.3
+  stderr                                                GHC.IO.Handle.FD                                             libraries/base/GHC/IO/Handle/FD.hs:77:1-6                                              1024           1    0.0    0.0     0.0    0.1
+   $wmkHandleMVar                                       GHC.IO.Handle.Internals                                      <no location info>                                                                     1028           1    0.0    0.1     0.0    0.1
+    newBuffer                                           GHC.IO.BufferedIO                                            libraries/base/GHC/IO/BufferedIO.hs:42:3-62                                            1031           1    0.0    0.0     0.0    0.1
+     $fBufferedIOFD                                     GHC.IO.FD                                                    libraries/base/GHC/IO/FD.hs:145:10-22                                                  1032           0    0.0    0.0     0.0    0.1
+      $fBufferedIOFD14                                  GHC.IO.FD                                                    <no location info>                                                                     1033           1    0.0    0.1     0.0    0.1
+  stdout                                                GHC.IO.Handle.FD                                             libraries/base/GHC/IO/Handle/FD.hs:66:1-6                                               995           1    0.0    0.0     0.0    0.1
+   $wmkHandleMVar                                       GHC.IO.Handle.Internals                                      <no location info>                                                                     1002           1    0.0    0.1     0.0    0.1
+    newBuffer                                           GHC.IO.BufferedIO                                            libraries/base/GHC/IO/BufferedIO.hs:42:3-62                                            1011           1    0.0    0.0     0.0    0.1
+     $fBufferedIOFD                                     GHC.IO.FD                                                    libraries/base/GHC/IO/FD.hs:145:10-22                                                  1012           0    0.0    0.0     0.0    0.1
+      $fBufferedIOFD14                                  GHC.IO.FD                                                    <no location info>                                                                     1013           1    0.0    0.1     0.0    0.1
