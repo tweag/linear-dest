@@ -4,21 +4,20 @@ module Main (main) where
 
 import qualified Bench.Compact.Pure as Compact
 import Compact.Pure.SExpr
-import Control.DeepSeq (rnf, force)
+import Control.DeepSeq (rwhnf, force)
 import Control.Exception (evaluate)
 import System.Environment
 import Test.Tasty.Bench (defaultMain)
-import Test.Tasty.HUnit
-import Test.Tasty (testGroup)
 import GHC.Compact (compact, getCompact)
-import Data.ByteString.Char8 (ByteString)
-import Data.Either (isRight)
 
 -- Launch regular benchmark with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
 
--- Profile parseWithoutDest with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDest' && mv memory.prof memory_without_dest.prof
+-- Profile parseWithoutDestForce with
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof
+
+-- Profile parseWithoutDestCopyReg with
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof
 
 -- Profile parseWithDest with
 -- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
@@ -37,32 +36,18 @@ main = do
   args <- getArgs
   !sampleData <- evaluate =<< force <$> loadSampleData
   case args of
-    "runParseWithoutDest" : _ -> do
+    "runParseWithoutDestForce" : _ -> do
+      let res = parseWithoutDest sampleData
+      evaluate . rwhnf . force $ res
+    "runParseWithoutDestCopyReg" : _ -> do
       let res = parseWithoutDest sampleData
       compResInRegion <- compact res
-      evaluate . rnf . getCompact $ compResInRegion
+      evaluate . rwhnf . getCompact $ compResInRegion
     "runParseWithDest" : _ -> do
       let resInRegion = parseWithDest sampleData
-      evaluate . rnf $ resInRegion
+      evaluate . rwhnf $ resInRegion
     _ ->
       defaultMain
-        [ Compact.benchmarks
-        , testGroup "safety"
-            [testCaseInfo "parseWithDest and parseWithoutDest give the same result and it is Right _" (sameResult sampleData)]
-            -- testCaseInfo "display (TODO remove)" (displayResult sampleData),
+        [ Compact.benchmark sampleData
+        , Compact.safety sampleData
         ]
-
--- displayResult :: ByteString -> IO String
--- displayResult sampleData = do
---   putStrLn $ "withoutDest = " ++ (show $ parseWithoutDest sampleData)
---   putStrLn $ "withDest = " ++ (show $ parseWithDest sampleData)
---   return ""
-
-sameResult :: ByteString -> IO String
-sameResult sampleData = do
-  let withoutDest = parseWithoutDest sampleData
-      withDest = parseWithDest sampleData
-  assertEqual "withoutDest == withDest" withoutDest withDest
-  assertEqual "withoutDest is Right" True (isRight withoutDest)
-  assertEqual "withDest is Right" True (isRight withDest)
-  return ""

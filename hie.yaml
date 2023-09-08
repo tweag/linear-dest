@@ -5,6 +5,8 @@ cradle:
       config: { cradle: {stack: {component: "linear-dest:lib"}} }
     - path: "./dump"
       config: { cradle: {stack: {component: "linear-dest:executable:dump"}} }
+    - path: "./jflart"
+      config: { cradle: {stack: {component: "linear-dest:bench:jflart"}} }
     - path: "./test"
       config: { cradle: {stack: {component: "linear-dest:test:test"}} }
     - path: "./memory"

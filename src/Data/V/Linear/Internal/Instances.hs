@@ -13,10 +13,7 @@ import qualified Data.Functor.Linear.Internal.Applicative as Data
 import qualified Data.Functor.Linear.Internal.Functor as Data
 import Data.V.Linear.Internal (V (..))
 import qualified Data.V.Linear.Internal as V
-import qualified Data.Vector as Vector
 import GHC.TypeLits
-import Prelude.Linear.Internal
-import qualified Unsafe.Linear as Unsafe
 
 -- # Instances of V
 -------------------------------------------------------------------------------

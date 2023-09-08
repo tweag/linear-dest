@@ -11,6 +11,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Compact.Pure.SExpr where
 
@@ -20,10 +21,8 @@ import Control.Functor.Linear ((<&>))
 import Data.Char (isSpace)
 import GHC.Generics (Generic)
 import Prelude.Linear
-import Text.Read (readMaybe)
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BSC
-import Data.Unrestricted.Linear (Consumable (consume), Dupable (dup2), Movable (move))
 import qualified Prelude as NonLinear
 
 loadSampleData :: IO ByteString

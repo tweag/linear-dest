@@ -38,6 +38,7 @@ import GHC.IO (IO (..), unsafePerformIO)
 import GHC.TypeLits
 import Unsafe.Coerce (unsafeCoerce, unsafeCoerceAddr)
 import Unsafe.Linear (toLinear, toLinear2)
+import Data.Constraint
 
 -------------------------------------------------------------------------------
 -- Helpers for display/debug
@@ -51,7 +52,7 @@ isProfilingEnabled = unsafePerformIO $ do
   return $ v /= (1 :: Word)
 
 indInfoPtr :: Ptr Word
-indInfoPtr = Ptr (unsafeCoerceAddr (reifyStgSymInfoPtr# (# #) :: InfoPtrPlaceholder# "IND"))
+indInfoPtr = Ptr (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# "IND"))
 
 wordSize :: Int
 wordSize = 8
@@ -392,6 +393,11 @@ instance Dupable (RegionToken r) where
 
 type RegionContext r = Reifies r Region
 
+data ReifiesDict s a = ReifiesDict {
+  _reflect :: forall proxy. proxy s -> a
+}
+data FakeDict a = FakeDict a
+
 data Dest r a = Dest Addr#
 
 newtype Incomplete r a b = Incomplete (a, b)
@@ -403,6 +409,19 @@ newtype Incomplete r a b = Incomplete (a, b)
 getRegion :: forall r. (RegionContext r) => Region
 getRegion = reflect (Proxy :: Proxy r)
 {-# INLINE getRegion #-}
+
+getToken :: forall r. (RegionContext r) => RegionToken r
+getToken = RegionToken (getRegion @r)
+{-# INLINE getToken #-}
+
+infuseToken :: forall r a. RegionToken r %1 -> (RegionContext r => RegionToken r %1 -> a) %1 -> a
+infuseToken = toLinear2 _infuseToken
+{-# INLINE infuseToken #-}
+
+_infuseToken :: forall r a. RegionToken r %1 -> (RegionContext r => RegionToken r %1 -> a) -> a
+_infuseToken (RegionToken reg) f = case unsafeCoerce (FakeDict (ReifiesDict (\_ -> reg))) :: Dict (RegionContext r) of
+    Dict -> f (RegionToken reg)
+{-# INLINE _infuseToken #-}
 
 withRegion :: forall b. (forall (r :: Type). (RegionContext r) => RegionToken r %1 -> Ur b) %1 -> Ur b
 withRegion = toLinear _withRegion
@@ -478,10 +497,10 @@ _fromRegExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) -> U
 _fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
   (Region (Compact c# _ (MVar m#))) -> case
     runRW# $ \s0 -> case takeMVar# m# s0 of
-      (# s1, () #) -> case compactAddShallow# @(Ur (a, b)) c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur)) s1 of
+      (# s1, () #) -> case compactAddShallow# @(Ur (a, b)) c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur)) s1 of
         (# s2, receiver #) -> case anyToAddr# receiver s2 of
           (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
-            (# s4, (# d# #) #) -> case compactAddShallow# @(a, b) c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# '(,))) s4 of
+            (# s4, (# d# #) #) -> case compactAddShallow# @(a, b) c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# '(,))) s4 of
               (# s5, pair #) -> case affect# d# pair s5 of
                 (# s6, pPair# #) -> case getSlots2# pair s6 of
                   (# s7, (# dRoot#, dCompanion# #) #) -> case putMVar# m# () s7 of
@@ -525,7 +544,7 @@ _fromReg :: forall r a. (RegionContext r) => Incomplete r a () -> Ur a
 _fromReg (Incomplete (root, ())) = case getRegion @r of
   (Region (Compact c# _ (MVar m#))) -> case
     runRW# $ \s0 -> case takeMVar# m# s0 of
-      (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
+      (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
         (# s2, receiver #) -> case anyToAddr# receiver s2 of
           (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
             (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
@@ -628,7 +647,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case putMVar# m# () s3 of
               s4 -> putDebugLn# (showFill (Ptr d#) (Ptr pXInRegion#) (ctorName $ getCtorData @metaCtor) []) (# s4, () #)
@@ -640,7 +659,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots1# xInRegion s3 of
               (# s4, (# d0# #) #) -> case putMVar# m# () s4 of
@@ -653,7 +672,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots2# xInRegion s3 of
               (# s4, (# d0#, d1# #) #) -> case putMVar# m# () s4 of
@@ -666,7 +685,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots3# xInRegion s3 of
               (# s4, (# d0#, d1#, d2# #) #) -> case putMVar# m# () s4 of
@@ -679,7 +698,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots4# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3# #) #) -> case putMVar# m# () s4 of
@@ -692,7 +711,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots5# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4# #) #) -> case putMVar# m# () s4 of
@@ -705,7 +724,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots6# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4#, d5# #) #) -> case putMVar# m# () s4 of
@@ -718,7 +737,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots7# xInRegion s3 of
               (# s4, (# d0#, d1#, d2#, d3#, d4#, d5#, d6# #) #) -> case putMVar# m# () s4 of

@@ -98,6 +98,7 @@ library
 
         base >=4.16 && <5,
         bytestring,
+        constraints,
         containers,
         deepseq,
         ghc-compact,
@@ -113,11 +114,9 @@ library
 
 executable dump
     import: warnings
-    type:             exitcode-stdio-1.0
     main-is:          Main.hs
     hs-source-dirs:   dump
     default-language: Haskell2010
-    ghc-options:      -threaded -O2 -rtsopts -with-rtsopts=-N
     build-depends:
         base,
         bytestring,
@@ -126,6 +125,27 @@ executable dump
         linear-dest,
         containers,
         vector
+
+benchmark jflart
+    import: warnings
+    type:             exitcode-stdio-1.0
+    main-is:          Main.hs
+    hs-source-dirs:   jflart
+    default-language: Haskell2010
+    other-modules:
+        Map.Bench
+        Map.Impl
+    build-depends:
+        base,
+        bytestring,
+        deepseq,
+        ghc-compact,
+        linear-dest,
+        containers,
+        vector,
+        tasty,
+        tasty-bench >= 0.3.4,
+        tasty-hunit
 
 test-suite test
     import: warnings
@@ -136,7 +156,6 @@ test-suite test
         Test.Compact.Pure
 
     default-language: Haskell2010
-    ghc-options:      -threaded -O2 -rtsopts -with-rtsopts=-N
     build-depends:
         base,
         bytestring,
@@ -156,7 +175,6 @@ benchmark memory
     other-modules:
         Bench.Compact.Pure
     default-language: Haskell2010
-    ghc-options:      -threaded -O2 -rtsopts -with-rtsopts=-N
     build-depends:
         base,
         bytestring,

@@ -5,7 +5,7 @@ instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype met
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyCtorInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots{n}# xInRegion s3 of
               (# s4, (# {destPrimList} #) #) -> case putMVar# m# () s4 of

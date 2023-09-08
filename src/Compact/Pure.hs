@@ -9,6 +9,8 @@ module Compact.Pure
     RegionContext,
     RegionToken,
     withRegion,
+    getToken,
+    infuseToken,
     Dest,
     Fill (fill),
     DestsOf,

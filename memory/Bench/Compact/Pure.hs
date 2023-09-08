@@ -1,255 +1,46 @@
-module Bench.Compact.Pure (benchmarks) where
+{-# LANGUAGe BlockArguments #-}
+{-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-import Compact.Pure.SExpr
+module Bench.Compact.Pure (benchmark, safety) where
+
 import GHC.Compact (compact, getCompact)
 import Test.Tasty.Bench
-import Control.DeepSeq (force, rnf)
+import Control.DeepSeq (force)
 import Control.Exception (evaluate)
+import Compact.Pure.SExpr
+import Test.Tasty.HUnit
+import Test.Tasty (testGroup, TestTree)
+import Data.ByteString.Char8 (ByteString)
+import Data.Either (isRight)
 
-benchmarks :: Benchmark
-benchmarks =
-  env (evaluate =<< force <$> loadSampleData) $ \sampleData ->
+benchmark :: ByteString -> Benchmark
+benchmark sampleData =
     bgroup
       "compact region allocs"
       [
-        -- bgroup
-        --   "whnfIO with return/id"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       return . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfIO with return/force"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       return . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfIO with return/rnf"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       return . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfIO with evaluate/id"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       evaluate . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfIO with evaluate/force"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       evaluate . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfIO with evaluate/rnf"
-        --   [ bench "without dest" . whnfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . whnfIO $ do
-        --       evaluate . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with return/id"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       return . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with return/force"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       return . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with return/rnf"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       return . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with evaluate/id"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       evaluate . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with evaluate/force"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       evaluate . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfIO with evaluate/rnf"
-        --   [ bench "without dest" . nfIO $ do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . nfIO $ do
-        --       evaluate . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfAppIO with return/id"
-        --   [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfAppIO with return/force"
-        --   [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfAppIO with return/rnf"
-        --   [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       return . rnf . parseWithDest $ sampleData
-        --   ],
         bgroup
-          "whnfAppIO with evaluate/id"
-          [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+          "whnfAppIO (evaluate)"
+          [ bench "without dest (with force)" . (flip whnfAppIO) sampleData $ \sampleData -> do
+              let res = parseWithoutDest sampleData
+              evaluate . force $ res
+            ,
+            bench "without dest (with copy into region)" . (flip whnfAppIO) sampleData $ \sampleData -> do
               let res = parseWithoutDest sampleData
               resInRegion <- compact res
-              evaluate . id . getCompact $ resInRegion
+              evaluate . getCompact $ resInRegion
             ,
             bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-              evaluate . id . parseWithDest $ sampleData
+              evaluate . parseWithDest $ sampleData
           ]
-        -- bgroup
-        --   "whnfAppIO with evaluate/force"
-        --   [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "whnfAppIO with evaluate/rnf"
-        --   [ bench "without dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with return/id"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with return/force"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with return/rnf"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       return . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       return . rnf . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with evaluate/id"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . id . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . id . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with evaluate/force"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . force . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . force . parseWithDest $ sampleData
-        --   ],
-        -- bgroup
-        --   "nfAppIO with evaluate/rnf"
-        --   [ bench "without dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       let res = parseWithoutDest sampleData
-        --       resInRegion <- compact res
-        --       evaluate . rnf . getCompact $ resInRegion
-        --     ,
-        --     bench "with dest" . (flip nfAppIO) sampleData $ \sampleData -> do
-        --       evaluate . rnf . parseWithDest $ sampleData
-        --   ]
       ]
+
+safety :: ByteString -> TestTree
+safety sampleData =
+  testGroup "safety" [testCaseInfo "parseWithDest and parseWithoutDest give the same result and it is Right _" $ do
+        let withoutDest = parseWithoutDest sampleData
+            withDest = parseWithDest sampleData
+        assertEqual "withoutDest == withDest" withoutDest withDest
+        assertEqual "withoutDest is Right" True (isRight withoutDest)
+        assertEqual "withDest is Right" True (isRight withDest)
+        return ""
+    ]
