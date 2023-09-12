@@ -1,6 +1,6 @@
+optimization: 2
 packages: *.cabal
-
 tests: true
 
 package linear-dest
-  ghc-options: -Wall
+  ghc-options: -threaded -rtsopts -Wall -Wcompat -Wincomplete-record-updates -Wincomplete-uni-patterns -Wnoncanonical-monad-instances

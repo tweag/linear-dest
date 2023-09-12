@@ -20,7 +20,7 @@ import Test.Tasty.Bench
 import qualified TreeTraversal.Bench as TreeTraversal
 
 -- run with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS'
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS'
 
 loadListSampleData :: IO [Int]
 loadListSampleData = return [1 .. 100000]

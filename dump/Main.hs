@@ -12,8 +12,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UnboxedTuples #-}
 
--- {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
-
 module Main (main) where
 
 import Compact.Pure
@@ -27,9 +25,9 @@ import System.Environment
 import Unsafe.Coerce (unsafeCoerceAddr)
 
 -- run with
--- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' exe:dump -- +RTS -s -RTS runParseWithoutDestForce
--- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg
--- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' exe:dump -- +RTS -s -RTS runParseWithDest
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest
 
 main :: IO ()
 main = do

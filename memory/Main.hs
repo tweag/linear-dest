@@ -11,16 +11,16 @@ import System.Environment
 import Test.Tasty.Bench (defaultMain)
 
 -- Launch regular benchmark with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
 
 -- Profile parseWithoutDestForce with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof
 
 -- Profile parseWithoutDestCopyReg with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof
 
 -- Profile parseWithDest with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
 
 -- remove useless lines in profiling results with
 -- .*?0\.0    0\.0     0\.0    0\.0\n
