@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -7,7 +8,6 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -38,6 +38,7 @@ import Data.Unrestricted.Linear.Internal.Ur
 import Data.V.Linear.Internal (V (..))
 import qualified Data.V.Linear.Internal as V
 import qualified Data.Vector as Vector
+import GHC.Generics
 import GHC.Int
 import GHC.TypeLits
 import GHC.Types hiding (Any)
@@ -45,31 +46,30 @@ import GHC.Word
 import Prelude.Linear.Internal
 import qualified Unsafe.Linear as Unsafe
 import qualified Prelude
-import GHC.Generics
 
 deriving instance Generic (Ur a)
 
-instance Prelude.Eq a => Prelude.Eq (Ur a) where
-  Ur x == Ur y = x Prelude.==  y
+instance (Prelude.Eq a) => Prelude.Eq (Ur a) where
+  Ur x == Ur y = x Prelude.== y
 
-instance Prelude.Show a => Prelude.Show (Ur a) where
+instance (Prelude.Show a) => Prelude.Show (Ur a) where
   show (Ur x) = "Ur " Prelude.++ Prelude.show x
 
 -- | Newtype that must be used with @DerivingVia@ to get efficient 'Dupable'
 -- and 'Consumable' implementations for 'Movable' types.
 newtype AsMovable a = AsMovable a
 
-instance Movable a => Movable (AsMovable a) where
+instance (Movable a) => Movable (AsMovable a) where
   move (AsMovable x) =
     move x & \case
       Ur x' -> Ur (AsMovable x')
 
-instance Movable a => Consumable (AsMovable a) where
+instance (Movable a) => Consumable (AsMovable a) where
   consume x =
     move x & \case
       Ur _ -> ()
 
-instance Movable a => Dupable (AsMovable a) where
+instance (Movable a) => Dupable (AsMovable a) where
   dupR x =
     move x & \case
       Ur x' -> Data.pure x'
@@ -255,18 +255,19 @@ instance (KnownNat n, Consumable a) => Consumable (V n a) where
 
 instance (KnownNat n, Dupable a) => Dupable (V n a) where
   dupR (V xs) =
-    V . Unsafe.toLinear (Vector.fromListN (V.theLength @n))
+    V
+      . Unsafe.toLinear (Vector.fromListN (V.theLength @n))
       Data.<$> dupR (Unsafe.toLinear Vector.toList xs)
 
-instance Consumable a => Consumable (Prelude.Maybe a) where
+instance (Consumable a) => Consumable (Prelude.Maybe a) where
   consume Prelude.Nothing = ()
   consume (Prelude.Just x) = consume x
 
-instance Dupable a => Dupable (Prelude.Maybe a) where
+instance (Dupable a) => Dupable (Prelude.Maybe a) where
   dupR Prelude.Nothing = Data.pure Prelude.Nothing
   dupR (Prelude.Just x) = Data.fmap Prelude.Just (dupR x)
 
-instance Movable a => Movable (Prelude.Maybe a) where
+instance (Movable a) => Movable (Prelude.Maybe a) where
   move (Prelude.Nothing) = Ur Prelude.Nothing
   move (Prelude.Just x) = Data.fmap Prelude.Just (move x)
 
@@ -282,25 +283,25 @@ instance (Movable a, Movable b) => Movable (Prelude.Either a b) where
   move (Prelude.Left a) = Data.fmap Prelude.Left (move a)
   move (Prelude.Right b) = Data.fmap Prelude.Right (move b)
 
-instance Consumable a => Consumable [a] where
+instance (Consumable a) => Consumable [a] where
   consume [] = ()
   consume (a : l) = consume a `lseq` consume l
 
-instance Dupable a => Dupable [a] where
+instance (Dupable a) => Dupable [a] where
   dupR [] = Data.pure []
   dupR (a : l) = (:) Data.<$> dupR a Data.<*> dupR l
 
-instance Movable a => Movable [a] where
+instance (Movable a) => Movable [a] where
   move [] = Ur []
   move (a : l) = (:) Data.<$> move a Data.<*> move l
 
-instance Consumable a => Consumable (NonEmpty a) where
+instance (Consumable a) => Consumable (NonEmpty a) where
   consume (x :| xs) = consume x `lseq` consume xs
 
-instance Dupable a => Dupable (NonEmpty a) where
+instance (Dupable a) => Dupable (NonEmpty a) where
   dupR (x :| xs) = (:|) Data.<$> dupR x Data.<*> dupR xs
 
-instance Movable a => Movable (NonEmpty a) where
+instance (Movable a) => Movable (NonEmpty a) where
   move (x :| xs) = (:|) Data.<$> move x Data.<*> move xs
 
 deriving via (AsMovable (Ur a)) instance Consumable (Ur a)
@@ -331,17 +332,17 @@ instance Prelude.Traversable Ur where
   sequenceA (Ur x) = Prelude.fmap Ur x
 
 -- Some stock instances
-deriving instance Consumable a => Consumable (Sum a)
+deriving instance (Consumable a) => Consumable (Sum a)
 
-deriving instance Dupable a => Dupable (Sum a)
+deriving instance (Dupable a) => Dupable (Sum a)
 
-deriving instance Movable a => Movable (Sum a)
+deriving instance (Movable a) => Movable (Sum a)
 
-deriving instance Consumable a => Consumable (Product a)
+deriving instance (Consumable a) => Consumable (Product a)
 
-deriving instance Dupable a => Dupable (Product a)
+deriving instance (Dupable a) => Dupable (Product a)
 
-deriving instance Movable a => Movable (Product a)
+deriving instance (Movable a) => Movable (Product a)
 
 deriving instance Consumable All
 
@@ -361,7 +362,7 @@ newtype MovableMonoid a = MovableMonoid a
 instance (Movable a, Prelude.Semigroup a) => Semigroup (MovableMonoid a) where
   MovableMonoid a <> MovableMonoid b = MovableMonoid (combine (move a) (move b))
     where
-      combine :: Prelude.Semigroup a => Ur a %1 -> Ur a %1 -> a
+      combine :: (Prelude.Semigroup a) => Ur a %1 -> Ur a %1 -> a
       combine (Ur x) (Ur y) = x Prelude.<> y
 
 instance (Movable a, Prelude.Monoid a) => Monoid (MovableMonoid a) where

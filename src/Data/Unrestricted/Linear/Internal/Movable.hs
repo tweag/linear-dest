@@ -25,5 +25,5 @@ import Data.Unrestricted.Linear.Internal.Ur
 --
 -- * @case move x of {Ur _ -> ()} = consume x@
 -- * @case move x of {Ur x -> (x, x)} = dup2 x@
-class Dupable a => Movable a where
+class (Dupable a) => Movable a where
   move :: a %1 -> Ur a

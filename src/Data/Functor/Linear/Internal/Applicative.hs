@@ -50,7 +50,7 @@ import Prelude.Linear.Internal
 -- It is a simple exercise to verify that these are equivalent to the definition
 -- of 'Applicative'. Hence that the choice of linearity of the various arrow is
 -- indeed natural.
-class Functor f => Applicative f where
+class (Functor f) => Applicative f where
   {-# MINIMAL pure, (liftA2 | (<*>)) #-}
   pure :: a -> f a
   (<*>) :: f (a %1 -> b) %1 -> f a %1 -> f b
@@ -71,7 +71,7 @@ instance (Applicative f, Applicative g) => Applicative (Compose f g) where
   (Compose f) <*> (Compose x) = Compose (liftA2 (<*>) f x)
   liftA2 f (Compose x) (Compose y) = Compose (liftA2 (liftA2 f) x y)
 
-instance Applicative m => Applicative (NonLinear.ReaderT r m) where
+instance (Applicative m) => Applicative (NonLinear.ReaderT r m) where
   pure x = NonLinear.ReaderT (\_ -> pure x)
   NonLinear.ReaderT f <*> NonLinear.ReaderT x = NonLinear.ReaderT (\r -> f r <*> x r)
 
@@ -81,10 +81,10 @@ instance (Applicative f, Semigroup a) => Semigroup (Ap f a) where
 instance (Applicative f, Monoid a) => Monoid (Ap f a) where
   mempty = Ap $ pure mempty
 
-instance Monoid x => Applicative (Const x) where
+instance (Monoid x) => Applicative (Const x) where
   pure _ = Const mempty
   Const x <*> Const y = Const (x <> y)
 
-instance Monoid a => Applicative ((,) a) where
+instance (Monoid a) => Applicative ((,) a) where
   pure x = (mempty, x)
   (u, f) <*> (v, x) = (u <> v, f x)

@@ -3,16 +3,16 @@
 {-# LANGUAGE LinearTypes #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_HADDOCK hide #-}
 
 -- | This is a very very simple prelude, which doesn't depend on anything else
 -- in the linear-base library.
 module Prelude.Linear.Internal
-    ( module Prelude.Linear.Internal.TypeEq,
-      module Prelude.Linear.Internal
-    )
+  ( module Prelude.Linear.Internal.TypeEq,
+    module Prelude.Linear.Internal,
+  )
 where
 
 import Data.Functor.Identity

@@ -58,16 +58,16 @@ import Prelude (String)
 -- @f a@ holds only one value of type @a@ and represents a computation
 -- producing an @a@ with an effect. All control functors are data functors,
 -- but not all data functors are control functors.
-class Data.Functor f => Functor f where
+class (Data.Functor f) => Functor f where
   -- | Map a linear function @g@ over a control functor @f a@.
   -- Note that @g@ is used linearly over the single @a@ in @f a@.
   fmap :: (a %1 -> b) %1 -> f a %1 -> f b
 
 -- | Apply the control @fmap@ over a data functor.
-dataFmapDefault :: Functor f => (a %1 -> b) -> f a %1 -> f b
+dataFmapDefault :: (Functor f) => (a %1 -> b) -> f a %1 -> f b
 dataFmapDefault f = fmap f
 
-(<$>) :: Functor f => (a %1 -> b) %1 -> f a %1 -> f b
+(<$>) :: (Functor f) => (a %1 -> b) %1 -> f a %1 -> f b
 (<$>) = fmap
 {-# INLINE (<$>) #-}
 
@@ -76,7 +76,7 @@ infixl 4 <$> -- same fixity as base.<$>
 -- |  @
 --    ('<&>') = 'flip' 'fmap'
 --    @
-(<&>) :: Functor f => f a %1 -> (a %1 -> b) %1 -> f b
+(<&>) :: (Functor f) => f a %1 -> (a %1 -> b) %1 -> f b
 (<&>) a f = f <$> a
 {-# INLINE (<&>) #-}
 
@@ -120,7 +120,7 @@ class (Data.Applicative f, Functor f) => Applicative f where
   liftA2 f x y = f <$> x <*> y
 
 -- | Apply the control @pure@ over a data applicative.
-dataPureDefault :: Applicative f => a -> f a
+dataPureDefault :: (Applicative f) => a -> f a
 dataPureDefault x = pure x
 
 -- # Control Monads
@@ -129,7 +129,7 @@ dataPureDefault x = pure x
 -- | Control linear monads.
 -- A linear monad is one in which you sequence linear functions in a context,
 -- i.e., you sequence functions of the form @a %1-> m b@.
-class Applicative m => Monad m where
+class (Applicative m) => Monad m where
   {-# MINIMAL (>>=) #-}
 
   -- | @x >>= g@ applies a /linear/ function @g@ linearly (i.e., using it
@@ -144,25 +144,25 @@ class Applicative m => Monad m where
 
 -- | This class handles pattern-matching failure in do-notation.
 -- See "Control.Monad.Fail" for details.
-class Monad m => MonadFail m where
+class (Monad m) => MonadFail m where
   fail :: String -> m a
 
-return :: Monad m => a %1 -> m a
+return :: (Monad m) => a %1 -> m a
 return x = pure x
 {-# INLINE return #-}
 
 -- | Given an effect-producing computation that produces an effect-producing computation
 -- that produces an @a@, simplify it to an effect-producing
 -- computation that produces an @a@.
-join :: Monad m => m (m a) %1 -> m a
+join :: (Monad m) => m (m a) %1 -> m a
 join action = action >>= id
 
 -- | Use this operator to define Applicative instances in terms of Monad instances.
-ap :: Monad m => m (a %1 -> b) %1 -> m a %1 -> m b
+ap :: (Monad m) => m (a %1 -> b) %1 -> m a %1 -> m b
 ap f x = f >>= (\f' -> fmap f' x)
 
 -- | Fold from left to right with a linear monad.
 -- This is a linear version of 'NonLinear.foldM'.
-foldM :: forall m a b. Monad m => (b %1 -> a %1 -> m b) -> b %1 -> [a] %1 -> m b
+foldM :: forall m a b. (Monad m) => (b %1 -> a %1 -> m b) -> b %1 -> [a] %1 -> m b
 foldM _ i [] = return i
 foldM f i (x : xs) = f i x >>= \i' -> foldM f i' xs

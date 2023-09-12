@@ -21,7 +21,6 @@ import GHC.TypeLits
 instance Data.Functor (V n) where
   fmap = V.map
 
-instance KnownNat n => Data.Applicative (V n) where
+instance (KnownNat n) => Data.Applicative (V n) where
   pure = V.pure
   a <*> b = a V.<*> b
-

@@ -4,11 +4,11 @@ module Main (main) where
 
 import qualified Bench.Compact.Pure as Compact
 import Compact.Pure.SExpr
-import Control.DeepSeq (rwhnf, force)
+import Control.DeepSeq (force, rwhnf)
 import Control.Exception (evaluate)
+import GHC.Compact (compact, getCompact)
 import System.Environment
 import Test.Tasty.Bench (defaultMain)
-import GHC.Compact (compact, getCompact)
 
 -- Launch regular benchmark with
 -- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --ghc-options='-threaded -O2 -rtsopts' linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS'
@@ -48,6 +48,6 @@ main = do
       evaluate . rwhnf $ resInRegion
     _ ->
       defaultMain
-        [ Compact.benchmark sampleData
-        , Compact.safety sampleData
+        [ Compact.benchmark sampleData,
+          Compact.safety sampleData
         ]

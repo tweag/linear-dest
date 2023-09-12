@@ -15,7 +15,6 @@
 -- that can be zipped.
 -- * Linear data traversable functors should be thought of as
 -- containers which store a finite number of values.
-
 module Data.Functor.Linear
   ( -- * Data Functor Hierarchy
     Functor (..),
@@ -23,7 +22,7 @@ module Data.Functor.Linear
     (<$),
     void,
     Applicative (..),
-    Const (..)
+    Const (..),
   )
 where
 

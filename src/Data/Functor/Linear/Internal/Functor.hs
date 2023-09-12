@@ -33,7 +33,7 @@ import Prelude (Either (..), Maybe (..))
 class Functor f where
   fmap :: (a %1 -> b) -> f a %1 -> f b
 
-(<$>) :: Functor f => (a %1 -> b) -> f a %1 -> f b
+(<$>) :: (Functor f) => (a %1 -> b) -> f a %1 -> f b
 (<$>) = fmap
 
 infixl 4 <$> -- same fixity as base.<$>
@@ -84,7 +84,7 @@ instance (Functor f, Functor g) => Functor (Compose f g) where
 -- Monad transformer instances --
 ---------------------------------
 
-instance Functor m => Functor (NonLinear.ReaderT r m) where
+instance (Functor m) => Functor (NonLinear.ReaderT r m) where
   fmap f (NonLinear.ReaderT g) = NonLinear.ReaderT (\r -> fmap f (g r))
 
 -- The below transformers are all Data.Functors and all fail to be
@@ -96,14 +96,14 @@ instance Functor m => Functor (NonLinear.ReaderT r m) where
 -- To give applicative instances for ContT (resp. StateT), we require the
 -- parameter r (resp. s) to be Movable.
 
-instance Functor m => Functor (NonLinear.MaybeT m) where
+instance (Functor m) => Functor (NonLinear.MaybeT m) where
   fmap f (NonLinear.MaybeT x) = NonLinear.MaybeT $ fmap (fmap f) x
 
-instance Functor m => Functor (NonLinear.ExceptT e m) where
+instance (Functor m) => Functor (NonLinear.ExceptT e m) where
   fmap f (NonLinear.ExceptT x) = NonLinear.ExceptT $ fmap (fmap f) x
 
 instance Functor (NonLinear.ContT r m) where
   fmap f (NonLinear.ContT x) = NonLinear.ContT $ \k -> x (\a -> k (f a))
 
-instance Functor m => Functor (Strict.StateT s m) where
+instance (Functor m) => Functor (Strict.StateT s m) where
   fmap f (Strict.StateT x) = Strict.StateT (\s -> fmap (\(a, s') -> (f a, s')) (x s))

@@ -45,16 +45,17 @@ compOnFreshAlloc = do
   let actual :: Ur (Int, Int)
       !actual = withRegion $ \(r :: RegionToken r) -> case dup2 r of
         (r', r'') ->
-          fromReg $
-            (alloc r')
-              <&> ( \dp ->
-                      case (dp & fill @'(,)) of
-                        (dl, dr) ->
-                          dl & fillLeaf 1 `lseq`
-                            dr
-                              & fillComp (alloc r'')
-                              & fillLeaf 2
-                  )
+          fromReg
+            $ (alloc r')
+            <&> ( \dp ->
+                    case (dp & fill @'(,)) of
+                      (dl, dr) ->
+                        dl
+                          & fillLeaf 1
+                          `lseq` dr
+                          & fillComp (alloc r'')
+                          & fillLeaf 2
+                )
       expected :: Ur (Int, Int)
       !expected = Ur (1, 2)
       fancyDisp = showHeap actual
@@ -66,16 +67,17 @@ compOnUsedAlloc = do
   let actual :: Ur (Int, (Int, Int))
       !actual = withRegion $ \r -> case dup2 r of
         (r', r'') ->
-          fromReg $
-            (alloc r')
-              <&> ( \dp ->
-                      case dp & fill @'(,) of
-                        (dl, dr) ->
-                          dl & fillLeaf 1 `lseq`
-                            dr
-                              & fillComp ((alloc r'') <&> (\dp' -> case dp' & fill @'(,) of (dr1, dr2) -> dr1 & fillLeaf 2 `lseq` dr2))
-                              & fillLeaf 3
-                  )
+          fromReg
+            $ (alloc r')
+            <&> ( \dp ->
+                    case dp & fill @'(,) of
+                      (dl, dr) ->
+                        dl
+                          & fillLeaf 1
+                          `lseq` dr
+                          & fillComp ((alloc r'') <&> (\dp' -> case dp' & fill @'(,) of (dr1, dr2) -> dr1 & fillLeaf 2 `lseq` dr2))
+                          & fillLeaf 3
+                )
       expected :: Ur (Int, (Int, Int))
       !expected = Ur (1, (2, 3))
       fancyDisp = showHeap actual
@@ -86,18 +88,20 @@ fillCustomDataAndExtract :: IO String
 fillCustomDataAndExtract = do
   let actual :: Ur (Foo Int Char, Int)
       !actual = withRegion $ \r ->
-        fromRegExtract $
-          (alloc r)
-            <&> ( \d ->
-                    case d & fill @'MkFoo of
-                      (dBar, dBaz, dBoo) ->
-                        dBar & fillLeaf 1
-                          `lseq` ( case dBaz & fill @'(,) of
-                                     (dl, dr) -> dl & fillLeaf 'a' `lseq` dr & fillLeaf 'b'
-                                 )
-                          `lseq` dBoo & fillLeaf 2
-                          `lseq` Ur 14
-                )
+        fromRegExtract
+          $ (alloc r)
+          <&> ( \d ->
+                  case d & fill @'MkFoo of
+                    (dBar, dBaz, dBoo) ->
+                      dBar
+                        & fillLeaf 1
+                        `lseq` ( case dBaz & fill @'(,) of
+                                   (dl, dr) -> dl & fillLeaf 'a' `lseq` dr & fillLeaf 'b'
+                               )
+                        `lseq` dBoo
+                        & fillLeaf 2
+                        `lseq` Ur 14
+              )
       expected :: Ur (Foo Int Char, Int)
       !expected = Ur (MkFoo 1 ('a', 'b') 2, 14)
       fancyDisp = showHeap actual

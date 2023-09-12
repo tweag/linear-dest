@@ -20,7 +20,7 @@ seqUnit () b = b
 
 -- | Consume the first argument and return the second argument.
 -- This is like 'seq' but the first argument is restricted to be 'Consumable'.
-lseq :: Consumable a => a %1 -> b %1 -> b
+lseq :: (Consumable a) => a %1 -> b %1 -> b
 lseq a b = seqUnit (consume a) b
 
 infixr 0 `lseq` -- same fixity as base.seq

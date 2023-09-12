@@ -41,7 +41,7 @@ import Prelude.Linear.Internal
 --
 -- Implementation of 'Dupable' for 'Data.Unrestricted.Movable' types should
 -- be done with @deriving via 'Data.Unrestricted.AsMovable'@.
-class Consumable a => Dupable a where
+class (Consumable a) => Dupable a where
   {-# MINIMAL dupR | dup2 #-}
 
   -- | Creates a 'Replicator' for the given @a@.
@@ -61,25 +61,25 @@ class Consumable a => Dupable a where
   dup2 x = Replicator.elim (,) (dupR x)
 
 -- | Creates 3 @a@s from a @'Dupable' a@, in a linear fashion.
-dup3 :: Dupable a => a %1 -> (a, a, a)
+dup3 :: (Dupable a) => a %1 -> (a, a, a)
 dup3 x = Replicator.elim (,,) (dupR x)
 
 -- | Creates 4 @a@s from a @'Dupable' a@, in a linear fashion.
-dup4 :: Dupable a => a %1 -> (a, a, a, a)
+dup4 :: (Dupable a) => a %1 -> (a, a, a, a)
 dup4 x = Replicator.elim (,,,) (dupR x)
 
 -- | Creates 5 @a@s from a @'Dupable' a@, in a linear fashion.
-dup5 :: Dupable a => a %1 -> (a, a, a, a, a)
+dup5 :: (Dupable a) => a %1 -> (a, a, a, a, a)
 dup5 x = Replicator.elim (,,,,) (dupR x)
 
 -- | Creates 6 @a@s from a @'Dupable' a@, in a linear fashion.
-dup6 :: Dupable a => a %1 -> (a, a, a, a, a, a)
+dup6 :: (Dupable a) => a %1 -> (a, a, a, a, a, a)
 dup6 x = Replicator.elim (,,,,,) (dupR x)
 
 -- | Creates 7 @a@s from a @'Dupable' a@, in a linear fashion.
-dup7 :: Dupable a => a %1 -> (a, a, a, a, a, a, a)
+dup7 :: (Dupable a) => a %1 -> (a, a, a, a, a, a, a)
 dup7 x = Replicator.elim (,,,,,,) (dupR x)
 
 -- | Creates two @a@s from a @'Dupable' a@. Same function as 'dup2'.
-dup :: Dupable a => a %1 -> (a, a)
+dup :: (Dupable a) => a %1 -> (a, a)
 dup = dup2

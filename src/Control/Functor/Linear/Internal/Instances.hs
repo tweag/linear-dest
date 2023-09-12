@@ -32,21 +32,21 @@ newtype Data f a = Data (f a)
 -- # Basic instances
 -------------------------------------------------------------------------------
 
-instance Functor f => Data.Functor (Data f) where
+instance (Functor f) => Data.Functor (Data f) where
   fmap f (Data x) = Data (fmap f x)
 
-instance Applicative f => Data.Applicative (Data f) where
+instance (Applicative f) => Data.Applicative (Data f) where
   pure x = Data (pure x)
   Data f <*> Data x = Data (f <*> x)
 
 instance Functor ((,) a) where
   fmap f (a, x) = (a, f x)
 
-instance Monoid a => Applicative ((,) a) where
+instance (Monoid a) => Applicative ((,) a) where
   pure x = (mempty, x)
   (a, f) <*> (b, x) = (a <> b, f x)
 
-instance Monoid a => Monad ((,) a) where
+instance (Monoid a) => Monad ((,) a) where
   (a, x) >>= f = go a (f x)
     where
       go :: a %1 -> (a, b) %1 -> (a, b)

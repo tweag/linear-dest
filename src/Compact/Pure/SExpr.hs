@@ -1,28 +1,28 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE LinearTypes #-}
+{-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Compact.Pure.SExpr where
 
 import Compact.Pure.Internal
 import Control.DeepSeq (NFData)
 import Control.Functor.Linear ((<&>))
+import Data.ByteString.Char8 (ByteString)
+import qualified Data.ByteString.Char8 as BSC
 import Data.Char (isSpace)
 import GHC.Generics (Generic)
 import Prelude.Linear
-import Data.ByteString.Char8 (ByteString)
-import qualified Data.ByteString.Char8 as BSC
 import qualified Prelude as NonLinear
 
 loadSampleData :: IO ByteString
@@ -124,7 +124,7 @@ parseStringWithoutDest' bs i escape acc = case bs BSC.!? i of
     'n' | escape -> parseStringWithoutDest' bs (i + 1) False ('\n' : acc)
     _ -> parseStringWithoutDest' bs (i + 1) False (c : acc)
 
-parseStringWithDest' :: RegionContext r => ByteString -> Int -> Bool -> Dest r Int %1 -> Dest r [Char] %1 -> Either SExprParseError Int
+parseStringWithDest' :: (RegionContext r) => ByteString -> Int -> Bool -> Dest r Int %1 -> Dest r [Char] %1 -> Either SExprParseError Int
 parseStringWithDest' bs i escape dEndPos d = case bs BSC.!? i of
   Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSString i
   Just c -> case c of
@@ -136,26 +136,30 @@ parseStringWithDest' bs i escape dEndPos d = case bs BSC.!? i of
 parseListWithoutDest' :: ByteString -> Int -> [SExpr] -> Either SExprParseError SExpr
 parseListWithoutDest' bs i acc = case bs BSC.!? i of
   Nothing -> Left $ UnexpectedEOFSList i
-  Just c -> \cases
-    | c == ')' -> Right $ SList i (reverse acc)
-    -- we need this case for final spaces before the closing paren
-    -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
-    | isSpace c -> parseListWithoutDest' bs (i + 1) acc
-    | otherwise -> case parseWithoutDest' bs i of
-        Left err -> Left err
-        Right children -> parseListWithoutDest' bs (endPos children + 1) (children : acc)
+  Just c ->
+    \cases
+      | c == ')' -> Right $ SList i (reverse acc)
+      -- we need this case for final spaces before the closing paren
+      -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
+      | isSpace c -> parseListWithoutDest' bs (i + 1) acc
+      | otherwise -> case parseWithoutDest' bs i of
+          Left err -> Left err
+          Right children -> parseListWithoutDest' bs (endPos children + 1) (children : acc)
 
-parseListWithDest' :: RegionContext r => ByteString -> Int -> Dest r Int %1 -> Dest r [SExpr] %1 -> Either SExprParseError Int
+parseListWithDest' :: (RegionContext r) => ByteString -> Int -> Dest r Int %1 -> Dest r [SExpr] %1 -> Either SExprParseError Int
 parseListWithDest' bs i dEndPos d = case bs BSC.!? i of
   Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSList i
-  Just c -> \cases
-    | c == ')' -> dEndPos & fillLeaf i `lseq` d & fill @'[] `lseq` Right i
-    -- we need this case for final spaces before the closing paren
-    -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
-    | isSpace c -> parseListWithDest' bs (i + 1) dEndPos d 
-    | otherwise -> let !(dh, dt) = d & fill @'(:) in case parseWithDest' bs i dh of
-        Left err -> dEndPos & fillLeaf (-1) `lseq` dt & fill @'[] `lseq` Left err
-        Right childrenEndPos -> parseListWithDest' bs (childrenEndPos + 1) dEndPos dt
+  Just c ->
+    \cases
+      | c == ')' -> dEndPos & fillLeaf i `lseq` d & fill @'[] `lseq` Right i
+      -- we need this case for final spaces before the closing paren
+      -- parseWithoutDest' know how to handle leading spaces, but will expect a token after, whereas this case allows for trailing spaces
+      | isSpace c -> parseListWithDest' bs (i + 1) dEndPos d
+      | otherwise ->
+          let !(dh, dt) = d & fill @'(:)
+           in case parseWithDest' bs i dh of
+                Left err -> dEndPos & fillLeaf (-1) `lseq` dt & fill @'[] `lseq` Left err
+                Right childrenEndPos -> parseListWithDest' bs (childrenEndPos + 1) dEndPos dt
 
 parseWithoutDest' :: ByteString -> Int -> Either SExprParseError SExpr
 parseWithoutDest' bs i = case bs BSC.!? i of
@@ -167,13 +171,13 @@ parseWithoutDest' bs i = case bs BSC.!? i of
     _ ->
       let token = nextTokenAt i bs
        in if BSC.null token
-            -- c is a (leading) space because we matched against the other cases before
-            then parseWithoutDest' bs (i + 1)
+            then -- c is a (leading) space because we matched against the other cases before
+              parseWithoutDest' bs (i + 1)
             else case BSC.readInt token of
               Just (int, remaining) | BSC.null remaining -> Right $ SInteger (i + BSC.length token - 1) int
               _ -> Right $ SSymbol (i + BSC.length token - 1) (BSC.unpack token)
 
-parseWithDest' :: RegionContext r => ByteString -> Int -> Dest r SExpr %1 -> Either SExprParseError Int
+parseWithDest' :: (RegionContext r) => ByteString -> Int -> Dest r SExpr %1 -> Either SExprParseError Int
 parseWithDest' bs i d = case bs BSC.!? i of
   Nothing -> d & fillLeaf defaultSExpr `lseq` Left $ UnexpectedEOFSExpr i
   Just c -> case c of
@@ -183,36 +187,41 @@ parseWithDest' bs i d = case bs BSC.!? i of
     _ ->
       let token = nextTokenAt i bs
        in if BSC.null token
-            -- c is a (leading) space because we matched against the other cases before
-            then parseWithDest' bs (i + 1) d
+            then -- c is a (leading) space because we matched against the other cases before
+              parseWithDest' bs (i + 1) d
             else case BSC.readInt token of
-              Just (int, remaining) | BSC.null remaining ->
-                let !(dEndPos, dInt) = d & fill @'SInteger
-                    endPos = i + BSC.length token - 1
-                 in dEndPos & fillLeaf endPos `lseq` dInt & fillLeaf int `lseq` Right endPos
+              Just (int, remaining)
+                | BSC.null remaining ->
+                    let !(dEndPos, dInt) = d & fill @'SInteger
+                        endPos = i + BSC.length token - 1
+                     in dEndPos & fillLeaf endPos `lseq` dInt & fillLeaf int `lseq` Right endPos
               _ ->
-                let !(dEndPos, dSym) = d & fill @'SSymbol 
+                let !(dEndPos, dSym) = d & fill @'SSymbol
                     endPos = i + BSC.length token - 1
                  in dEndPos & fillLeaf endPos `lseq` dSym & fillLeaf (BSC.unpack token) `lseq` Right endPos
 
 parseWithoutDest :: ByteString -> Either SExprParseError SExpr
 parseWithoutDest bs = case parseWithoutDest' bs 0 of
   Left err -> Left err
-  Right sexpr -> let i = endPos sexpr in if
-      | i >= BSC.length bs - 1 -> Right sexpr
-      | rem <- snd (BSC.splitAt (i + 1) bs), BSC.all isSpace rem -> Right sexpr
-      | otherwise -> Left $ UnexpectedContentAfter (i + 1)
+  Right sexpr ->
+    let i = endPos sexpr
+     in if
+          | i >= BSC.length bs - 1 -> Right sexpr
+          | rem <- snd (BSC.splitAt (i + 1) bs), BSC.all isSpace rem -> Right sexpr
+          | otherwise -> Left $ UnexpectedContentAfter (i + 1)
 
 parseWithDest :: ByteString -> Either SExprParseError SExpr
 parseWithDest bs =
   let Ur (sexpr, res) =
         withRegion $ \r ->
-          fromRegExtract $
-            alloc r <&> \d ->
+          fromRegExtract
+            $ alloc r
+            <&> \d ->
               move $ parseWithDest' bs 0 d
    in case res of
         Left err -> Left err
-        Right i -> if
+        Right i ->
+          if
             | i >= BSC.length bs - 1 -> Right sexpr
             | rem <- snd (BSC.splitAt (i + 1) bs), BSC.all isSpace rem -> Right sexpr
             | otherwise -> Left $ UnexpectedContentAfter (i + 1)
