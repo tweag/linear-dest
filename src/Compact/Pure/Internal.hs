@@ -16,7 +16,8 @@
 
 module Compact.Pure.Internal where
 
-import Control.Functor.Linear (Data)
+import Prelude hiding (Monad, (>>=))
+import Control.Functor.Linear (Monad, Data)
 import Control.Functor.Linear qualified as Control
 import Control.Monad (forM)
 import Data.Data (Proxy (Proxy))
@@ -423,6 +424,22 @@ _infuseToken (RegionToken reg) f = case unsafeCoerce (FakeDict (ReifiesDict (\_ 
     Dict -> f (RegionToken reg)
 {-# INLINE _infuseToken #-}
 
+withRegionM :: forall b m. Monad m => (forall (r :: Type). (RegionContext r) => RegionToken r %1 -> m (Ur b)) %1 -> m (Ur b)
+withRegionM = toLinear _withRegionM
+{-# INLINE withRegionM #-}
+
+{-# NOINLINE _withRegionM #-}
+_withRegionM :: forall b m. Monad m => (forall (r :: Type). (RegionContext r) => RegionToken r %1 -> m (Ur b)) -> m (Ur b)
+_withRegionM f =
+  unsafePerformIO $ do
+    c <- (compact firstInhabitant)
+    let !firstInhabitantInRegion = getCompact c
+        firstPtr = ptrToWord $ aToRawPtr $ firstInhabitantInRegion
+    putDebugLn $
+      "withRegion: allocating new region around @"
+        ++ (show firstPtr)
+    return $! reify (Region {root = c}) (\(proxy :: Proxy s) -> f (RegionToken @s (reflect proxy)))
+
 withRegion :: forall b. (forall (r :: Type). (RegionContext r) => RegionToken r %1 -> Ur b) %1 -> Ur b
 withRegion = toLinear _withRegion
 {-# INLINE withRegion #-}
@@ -535,6 +552,9 @@ _fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
                                       ++ ": [companion]"
                                   )
       of (# _, res #) -> res
+
+fromRegM :: forall r a m. (Monad m, RegionContext r) => Incomplete r a (m ()) %1 -> m (Ur a)
+fromRegM (Incomplete (root, m)) = Control.fmap (\x -> fromReg @r (Incomplete (root, x))) m
 
 fromReg :: forall r a. (RegionContext r) => Incomplete r a () %1 -> Ur a
 fromReg = toLinear _fromReg

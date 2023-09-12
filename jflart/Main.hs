@@ -13,12 +13,11 @@
 module Main (main) where
 
 import Test.Tasty.Bench
-import Test.Tasty.HUnit
-import Test.Tasty (testGroup)
 import Control.DeepSeq (force)
 import Control.Exception (evaluate)
 
 import qualified Map.Bench as Map
+import qualified TreeTraversal.Bench as TreeTraversal
 import qualified Prelude.Linear as Lin
 
 -- run with
@@ -36,4 +35,6 @@ main = do
   defaultMain
         [ Map.benchmark listSampleData listTransformer
         , Map.safety listSampleData listTransformer
+        , TreeTraversal.safety
         ]
+        

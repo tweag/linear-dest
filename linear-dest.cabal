@@ -135,6 +135,10 @@ benchmark jflart
     other-modules:
         Map.Bench
         Map.Impl
+        DList.Impl
+        Queue.Impl
+        TreeTraversal.Bench
+        TreeTraversal.Impl
     build-depends:
         base,
         bytestring,
