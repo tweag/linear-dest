@@ -9,25 +9,13 @@ env:
 jobs:
   cabal-test-bench:
     name: Run tests & benchmarks with cabal
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
     - uses: actions/checkout@v3
       with:
         lfs: true
     - name: Checkout LFS objects
       run: git lfs checkout
-    - uses: cachix/install-nix-action@v22
-      with:
-        nix_path: nixpkgs=${{ env.nixpkgs-url }}
-    - name: Cache Cabal dependencies
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cabal/packages
-          ~/.cabal/store
-          dist-newstyle
-        key: cabal-deps-${{ runner.os }}-${{ hashFiles('nix/sources.json') }}-v${{ env.cache-invalidation-key }}-${{ hashFiles('linear-dest.cabal') }}-${{ github.sha }}
-        restore-keys: cabal-deps-${{ runner.os }}-${{ hashFiles('nix/sources.json') }}-v${{ env.cache-invalidation-key }}-${{ hashFiles('linear-dest.cabal') }}-
     - name: Build Nix dependencies
       run: nix-shell --pure --run "echo '=== Nix dependencies installed ==='"
     - name: Install custom GHC
