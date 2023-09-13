@@ -19,7 +19,7 @@ jobs:
     - name: Install custom GHC
       run: nix-shell --pure --run "tar xJf ghc-bindist@580d39a221.tar.xz && mkdir -p ghc@580d39a221 && cd ghc-9.9.20230911-x86_64-unknown-linux && ./configure --prefix="'$'"(pwd)/../ghc@580d39a221 && make install && cd .."
     - name: Init Cabal's config file
-      run: nix-shell --pure --run "cabal --config-file=/home/runner/.cabal/config user-config -f init"
+      run: nix-shell --pure --run "cabal --config-file=$HOME/.cabal/config user-config -f init"
     - name: Update Cabal's database
       run: nix-shell --pure --run "cabal update"
     - name: Build Cabal's dependencies
