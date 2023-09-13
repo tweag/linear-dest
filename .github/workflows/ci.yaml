@@ -3,8 +3,8 @@ on: [push, pull_request]
 env:
   # Bump this number to invalidate the Github-actions cache
   cache-invalidation-key: 0
-  nixpkgs-url: https://github.com/NixOS/nixpkgs/archive/db8672b8d0a2593c2405aed0c1dfa64b2a2f428f.tar.gz
-  ghc-exe: ./ghc_compact_prims_580d39a221.elf
+  nixpkgs-url: https://github.com/NixOS/nixpkgs/archive/1697b7d480449b01111e352021f46e5879e47643.tar.gz
+  ghc-exe: ./ghc@580d39a221/bin/ghc
 
 jobs:
   cabal-test-bench:
@@ -30,6 +30,8 @@ jobs:
         restore-keys: cabal-deps-${{ runner.os }}-${{ hashFiles('nix/sources.json') }}-v${{ env.cache-invalidation-key }}-${{ hashFiles('linear-dest.cabal') }}-
     - name: Build Nix dependencies
       run: nix-shell --pure --run "echo '=== Nix dependencies installed ==='"
+    - name: Install custom GHC
+      run: nix-shell --pure --run "tar xJf ghc-bindist@580d39a221.tar.xz && mkdir -p ghc@580d39a221 && cd ghc-9.9.20230911-x86_64-unknown-linux && ./configure --prefix="'$'"(pwd)/../ghc@580d39a221 && make install && cd .."
     - name: Init Cabal's config file
       run: nix-shell --pure --run "cabal --config-file=/home/runner/.cabal/config user-config -f init"
     - name: Update Cabal's database

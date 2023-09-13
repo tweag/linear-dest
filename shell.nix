@@ -1,24 +1,25 @@
 { system ? builtins.currentSystem, sources ? import ./nix/sources.nix, ghcVersion ? "96" }:
 
 let
-  selectHls = self: super: {
-    haskell-language-server = super.haskell-language-server.override { supportedGhcVersions = [ "${ghcVersion}" ]; };
-  };
-  pkgs = import sources.nixpkgs { inherit system; overlays = [ selectHls ]; };
-  cabal-docspec = import ./nix/cabal-docspec.nix { inherit pkgs; };
-  stack-wrapped = pkgs.symlinkJoin {
-    name = "stack";
-    paths = [ pkgs.stack ];
-    buildInputs = [ pkgs.makeWrapper ];
-    postBuild = ''
-      wrapProgram $out/bin/stack \
-        --add-flags "\
-          --nix \
-          --nix-path=\\"nixpkgs=${pkgs.path}\\"
-          --nix-shell-file nix/shell-stack.nix \
-        "
-    '';
-  };
+  # selectHls = self: super: {
+  #   haskell-language-server = super.haskell-language-server.override { supportedGhcVersions = [ "${ghcVersion}" ]; };
+  # };
+  # pkgs = import sources.nixpkgs { inherit system; overlays = [ selectHls ]; };
+  pkgs = import sources.nixpkgs { inherit system; overlays = [ ]; };
+  # cabal-docspec = import ./nix/cabal-docspec.nix { inherit pkgs; };
+  # stack-wrapped = pkgs.symlinkJoin {
+  #   name = "stack";
+  #   paths = [ pkgs.stack ];
+  #   buildInputs = [ pkgs.makeWrapper ];
+  #   postBuild = ''
+  #     wrapProgram $out/bin/stack \
+  #       --add-flags "\
+  #         --nix \
+  #         --nix-path=\\"nixpkgs=${pkgs.path}\\"
+  #         --nix-shell-file nix/shell-stack.nix \
+  #       "
+  #   '';
+  # };
 in with pkgs;
 
 mkShell {
@@ -30,8 +31,9 @@ mkShell {
     bashInteractive
     haskell.compiler."ghc${ghcVersion}"
     cabal-install
-    stack-wrapped
-    nix
-    haskell-language-server
+    gnumake
+    # stack-wrapped
+    # nix
+    # haskell-language-server
   ];
 }
