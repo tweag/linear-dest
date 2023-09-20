@@ -2,7 +2,7 @@ name: Continuous integration
 on: [push, pull_request]
 env:
   NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/1697b7d480449b01111e352021f46e5879e47643.tar.gz
-  ghc-exe: ./ghc@580d39a221/bin/ghc
+  ghc-exe: $(pwd)/ghc@580d39a221/bin/ghc
 
 jobs:
   cabal-test-bench:
