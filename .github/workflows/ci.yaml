@@ -31,19 +31,19 @@ jobs:
     - name: exe:dump target - build -s benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump"
     - name: exe:dump target - run -s benchmark without dest (force)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark without dest (copy into region)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestDestCopyReg -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyReg -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark with dest
       run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
     - name: bench:memory target - build -T benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory"
     - name: bench:memory target - run -T benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParse -T ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParse -T ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
     - name: bench:jflart target - build benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart"
     - name: bench:jflart target - run benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark & Tests Jflart ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark & Tests Jflart ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
     - name: bench:memory target - build -p benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory"
     - name: bench:memory target - run profiling without dest (force)
