@@ -47,11 +47,11 @@ jobs:
     - name: bench:memory target - build -p benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory"
     - name: bench:memory target - run profiling without dest (force)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
     - name: bench:memory target - run profiling without dest (copy into region)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof"
     - name: bench:memory target - run profiling with dest
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
     - name: Upload results
       uses: actions/upload-artifact@v3
       with:
