@@ -46,8 +46,8 @@ benchmark sampleData f =
             [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
                 evaluate $ force $ impl @a @b f sampleData,
               bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
-                resInReg <- compact $ impl @a @b f sampleData
-                evaluate $ getCompact $ resInReg
+                resInRegion <- compact $ impl @a @b f sampleData
+                evaluate $ getCompact $ resInRegion
             ]
       )
         ++ ( destImpls <&> \(impl, implName) ->

@@ -32,4 +32,4 @@ concat :: forall r a. (RegionContext r) => DList r a %1 -> DList r a %1 -> DList
 concat (DList i1) (DList i2) = DList $ i1 <&> \dl -> dl & fillComp i2
 
 toList :: forall r a. (RegionContext r) => DList r a %1 -> [a]
-toList (DList i) = unur . fromReg $ i <&> \dl -> dl & fill @'[]
+toList (DList i) = unur . fromRegion $ i <&> \dl -> dl & fill @'[]

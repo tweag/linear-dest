@@ -47,8 +47,8 @@ import Prelude hiding (Monad, (>>=))
 
 isProfilingEnabled :: Bool
 isProfilingEnabled = unsafePerformIO $ do
-  intInReg <- getCompact <$> compact (1 :: Word)
-  let intAddr = aToRawPtr intInReg
+  intInRegion <- getCompact <$> compact (1 :: Word)
+  let intAddr = aToRawPtr intInRegion
   v <- peek $ intAddr `plusPtr` wordSize
   return $ v /= (1 :: Word)
 
@@ -423,8 +423,8 @@ infuseToken = toLinear2 _infuseToken
 {-# INLINE infuseToken #-}
 
 _infuseToken :: forall r a. RegionToken r %1 -> ((RegionContext r) => RegionToken r %1 -> a) -> a
-_infuseToken (RegionToken reg) f = case unsafeCoerce (FakeDict (ReifiesDict (\_ -> reg))) :: Dict (RegionContext r) of
-  Dict -> f (RegionToken reg)
+_infuseToken (RegionToken region) f = case unsafeCoerce (FakeDict (ReifiesDict (\_ -> region))) :: Dict (RegionContext r) of
+  Dict -> f (RegionToken region)
 {-# INLINE _infuseToken #-}
 
 withRegionM :: forall b m. (Monad m) => (forall (r :: Type). (RegionContext r) => RegionToken r %1 -> m (Ur b)) %1 -> m (Ur b)
@@ -464,7 +464,7 @@ fillComp = toLinear2 _fillComp
 {-# INLINE fillComp #-}
 
 fillLeaf :: forall r a. (RegionContext r) => a -> Dest r a %1 -> ()
-fillLeaf x = fillComp (intoReg (RegionToken @r (reflect (Proxy :: Proxy r))) x)
+fillLeaf x = fillComp (intoRegion (RegionToken @r (reflect (Proxy :: Proxy r))) x)
 {-# INLINE fillLeaf #-}
 
 _fillComp :: forall r a b. (RegionContext r) => Incomplete r a b -> Dest r a -> b
@@ -481,18 +481,18 @@ _fillComp (Incomplete (root, companion)) (Dest d#) = case runRW# $ \s0 -> case a
   (# _, res #) -> res
 
 -- TODO: should we add the redundant '(RegionContext r) =>' here?
-intoReg :: forall r a. RegionToken r %1 -> a -> Incomplete r a ()
-intoReg = toLinear2 _intoReg
+intoRegion :: forall r a. RegionToken r %1 -> a -> Incomplete r a ()
+intoRegion = toLinear2 _intoRegion
 
-{-# INLINE _intoReg #-}
-_intoReg :: forall r a. RegionToken r -> a -> Incomplete r a ()
-_intoReg (RegionToken (Region (Compact c# _ (MVar m#)))) x = case runRW# $ \s0 ->
+{-# INLINE _intoRegion #-}
+_intoRegion :: forall r a. RegionToken r -> a -> Incomplete r a ()
+_intoRegion (RegionToken (Region (Compact c# _ (MVar m#)))) x = case runRW# $ \s0 ->
   case putInRegionIfNot# c# m# x s0 of
     (# s1, xInRegion #) -> case anyToAddr# xInRegion s1 of
       (# s2, pXInRegion# #) -> putDebugLn# message (# s2, Incomplete (xInRegion, ()) #)
         where
           message =
-            ( "intoReg: [region] <- #"
+            ( "intoRegion: [region] <- #"
                 ++ (show . ptrToWord $ Ptr pXInRegion#)
                 ++ ": [value]"
             ) of
@@ -507,12 +507,12 @@ putInRegionIfNot# c# m# x = \s0 -> case compactContains# c# x s0 of
         s4 -> (# s4, xInRegion #)
 {-# INLINE putInRegionIfNot# #-}
 
-fromRegExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) %1 -> Ur (a, b)
-fromRegExtract = toLinear _fromRegExtract
+fromRegionExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) %1 -> Ur (a, b)
+fromRegionExtract = toLinear _fromRegionExtract
 
-{-# NOINLINE _fromRegExtract #-}
-_fromRegExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) -> Ur (a, b)
-_fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
+{-# NOINLINE _fromRegionExtract #-}
+_fromRegionExtract :: forall r a b. (RegionContext r) => Incomplete r a (Ur b) -> Ur (a, b)
+_fromRegionExtract (Incomplete (root, uCompanion)) = case getRegion @r of
   (Region (Compact c# _ (MVar m#))) -> case runRW# $ \s0 -> case takeMVar# m# s0 of
     (# s1, () #) -> case compactAddShallow# @(Ur (a, b)) c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur)) s1 of
       (# s2, receiver #) -> case anyToAddr# receiver s2 of
@@ -524,15 +524,15 @@ _fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
                   s8 -> case affect# dRoot# root s8 of
                     (# s9, pRoot# #) -> case uCompanion of
                       Ur companion -> case putInRegionIfNot# c# m# companion s9 of
-                        (# s10, companionInReg #) -> case affect# dCompanion# companionInReg s10 of
-                          (# s11, pCompanionInReg# #) -> putDebugLn# message (# s11, receiver #)
+                        (# s10, companionInRegion #) -> case affect# dCompanion# companionInRegion s10 of
+                          (# s11, pCompanionInRegion# #) -> putDebugLn# message (# s11, receiver #)
                             where
                               message =
-                                ( "fromRegExtract: [region] <- #"
+                                ( "fromRegionExtract: [region] <- #"
                                     ++ (show . ptrToWord $ Ptr pReceiver#)
                                     ++ ": Ur _@"
                                     ++ (show . ptrToWord $ Ptr d#)
-                                    ++ "\nfromRegExtract: @"
+                                    ++ "\nfromRegionExtract: @"
                                     ++ (show . ptrToWord $ Ptr d#)
                                     ++ " <- #"
                                     ++ (show . ptrToWord $ Ptr pPair#)
@@ -540,28 +540,28 @@ _fromRegExtract (Incomplete (root, uCompanion)) = case getRegion @r of
                                     ++ (show . ptrToWord $ Ptr dRoot#)
                                     ++ " _@"
                                     ++ (show . ptrToWord $ Ptr dCompanion#)
-                                    ++ "\nfromRegExtract: @"
+                                    ++ "\nfromRegionExtract: @"
                                     ++ (show . ptrToWord $ Ptr dRoot#)
                                     ++ " <- #"
                                     ++ (show . ptrToWord $ Ptr pRoot#)
                                     ++ ": [root]"
-                                    ++ "\nfromRegExtract: @"
+                                    ++ "\nfromRegionExtract: @"
                                     ++ (show . ptrToWord $ Ptr dCompanion#)
                                     ++ " <- #"
-                                    ++ (show . ptrToWord $ Ptr pCompanionInReg#)
+                                    ++ (show . ptrToWord $ Ptr pCompanionInRegion#)
                                     ++ ": [companion]"
                                 ) of
     (# _, res #) -> res
 
-fromRegM :: forall r a m. (Monad m, RegionContext r) => Incomplete r a (m ()) %1 -> m (Ur a)
-fromRegM (Incomplete (root, m)) = Control.fmap (\x -> fromReg @r (Incomplete (root, x))) m
+fromRegionM :: forall r a m. (Monad m, RegionContext r) => Incomplete r a (m ()) %1 -> m (Ur a)
+fromRegionM (Incomplete (root, m)) = Control.fmap (\x -> fromRegion @r (Incomplete (root, x))) m
 
-fromReg :: forall r a. (RegionContext r) => Incomplete r a () %1 -> Ur a
-fromReg = toLinear _fromReg
+fromRegion :: forall r a. (RegionContext r) => Incomplete r a () %1 -> Ur a
+fromRegion = toLinear _fromRegion
 
-{-# NOINLINE _fromReg #-}
-_fromReg :: forall r a. (RegionContext r) => Incomplete r a () -> Ur a
-_fromReg (Incomplete (root, ())) = case getRegion @r of
+{-# NOINLINE _fromRegion #-}
+_fromRegion :: forall r a. (RegionContext r) => Incomplete r a () -> Ur a
+_fromRegion (Incomplete (root, ())) = case getRegion @r of
   (Region (Compact c# _ (MVar m#))) -> case runRW# $ \s0 -> case takeMVar# m# s0 of
     (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
       (# s2, receiver #) -> case anyToAddr# receiver s2 of
@@ -571,11 +571,11 @@ _fromReg (Incomplete (root, ())) = case getRegion @r of
               (# s6, pRoot# #) -> putDebugLn# message (# s6, receiver #)
                 where
                   message =
-                    ( "fromReg: [region] <- #"
+                    ( "fromRegion: [region] <- #"
                         ++ (show . ptrToWord $ Ptr pReceiver#)
                         ++ ": Ur _@"
                         ++ (show . ptrToWord $ Ptr dRoot#)
-                        ++ "\nfromRegExtract: @"
+                        ++ "\nfromRegionExtract: @"
                         ++ (show . ptrToWord $ Ptr dRoot#)
                         ++ " <- #"
                         ++ (show . ptrToWord $ Ptr pRoot#)
@@ -623,11 +623,11 @@ type family GDestsOf (specCtor :: (Meta, [(Meta, Type)])) (r :: Type) :: Type wh
 type family DestsOf liftedCtor (r :: Type) (a :: Type) where
   DestsOf liftedCtor r a = GDestsOf (LiftedCtorToSpecCtor liftedCtor a) r
 
-class Fill liftedCtor (r :: Type) (a :: Type) where
-  fill :: Dest r a -> DestsOf liftedCtor r a
+class Fill liftedCtor (a :: Type) where
+  fill :: forall (r :: Type). RegionContext r => Dest r a -> DestsOf liftedCtor r a
 
-instance (specCtor ~ LiftedCtorToSpecCtor liftedCtor a, GFill# liftedCtor specCtor a, DestsOf liftedCtor r a ~ GDestsOf specCtor r, RegionContext r) => Fill liftedCtor r a where
-  fill :: Dest r a -> DestsOf liftedCtor r a
+instance (specCtor ~ LiftedCtorToSpecCtor liftedCtor a, GFill# liftedCtor specCtor a) => Fill liftedCtor a where
+  fill :: forall (r :: Type). RegionContext r =>  Dest r a -> DestsOf liftedCtor r a
   fill (Dest d#) = case getRegion @r of
     (Region (Compact c# _ (MVar m#))) -> case runRW# (gFill# @liftedCtor @specCtor @a @r c# m# d#) of (# _, res #) -> res
   {-# INLINE fill #-}

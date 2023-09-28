@@ -26,7 +26,7 @@ import Unsafe.Coerce (unsafeCoerceAddr)
 
 -- run with
 -- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce
--- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg
+-- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyRegion
 -- cabal run -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest
 
 main :: IO ()
@@ -37,7 +37,7 @@ main = do
     "runParseWithoutDestForce" : _ -> do
       let res = parseWithoutDest sampleData
       evaluate . force $ res
-    "runParseWithoutDestCopyReg" : _ -> do
+    "runParseWithoutDestCopyRegion" : _ -> do
       let res = parseWithoutDest sampleData
       compResInRegion <- compact res
       evaluate . getCompact $ compResInRegion

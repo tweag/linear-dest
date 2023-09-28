@@ -16,8 +16,8 @@ import Test.Tasty.Bench (defaultMain)
 -- Profile parseWithoutDestForce with
 -- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof
 
--- Profile parseWithoutDestCopyReg with
--- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof
+-- Profile parseWithoutDestCopyRegion with
+-- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyRegion' && mv memory.prof memory_without_dest_copy_region.prof
 
 -- Profile parseWithDest with
 -- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof
@@ -39,7 +39,7 @@ main = do
     "runParseWithoutDestForce" : _ -> do
       let res = parseWithoutDest sampleData
       evaluate . rwhnf . force $ res
-    "runParseWithoutDestCopyReg" : _ -> do
+    "runParseWithoutDestCopyRegion" : _ -> do
       let res = parseWithoutDest sampleData
       compResInRegion <- compact res
       evaluate . rwhnf . getCompact $ compResInRegion

@@ -30,7 +30,7 @@ compactPureTests =
     "With dests to fill compact region"
     [ testCaseInfo "Dests for compact region: compose when RHS is freshly allocated" compOnFreshAlloc,
       testCaseInfo "Dests for compact region: compose when RHS has already been filled" compOnUsedAlloc,
-      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromRegExtract" fillCustomDataAndExtract
+      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromRegionExtract" fillCustomDataAndExtract
     ]
 
 -- Launch with
@@ -45,7 +45,7 @@ compOnFreshAlloc = do
   let actual :: Ur (Int, Int)
       !actual = withRegion $ \(r :: RegionToken r) -> case dup2 r of
         (r', r'') ->
-          fromReg
+          fromRegion
             $ (alloc r')
             <&> ( \dp ->
                     case (dp & fill @'(,)) of
@@ -67,7 +67,7 @@ compOnUsedAlloc = do
   let actual :: Ur (Int, (Int, Int))
       !actual = withRegion $ \r -> case dup2 r of
         (r', r'') ->
-          fromReg
+          fromRegion
             $ (alloc r')
             <&> ( \dp ->
                     case dp & fill @'(,) of
@@ -88,7 +88,7 @@ fillCustomDataAndExtract :: IO String
 fillCustomDataAndExtract = do
   let actual :: Ur (Foo Int Char, Int)
       !actual = withRegion $ \r ->
-        fromRegExtract
+        fromRegionExtract
           $ (alloc r)
           <&> ( \d ->
                   case d & fill @'MkFoo of

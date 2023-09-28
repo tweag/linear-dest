@@ -112,8 +112,8 @@ instance Show SExprParseError where
 defaultSExpr :: SExpr
 defaultSExpr = SInteger (-1) 0
 
-nextTokenAt :: Int -> ByteString -> ByteString
-nextTokenAt i bs = fst $ BSC.span (\c -> not (isSpace c) && c /= '(' && c /= ')' && c /= '"') (snd $ BSC.splitAt i bs)
+extractNextToken :: ByteString -> Int -> ByteString
+extractNextToken bs i = fst $ BSC.span (\c -> not (isSpace c) && c /= '(' && c /= ')' && c /= '"') (snd $ BSC.splitAt i bs)
 
 parseStringWithoutDest' :: ByteString -> Int -> Bool -> [Char] -> Either SExprParseError SExpr
 parseStringWithoutDest' bs i escape acc = case bs BSC.!? i of
@@ -169,7 +169,7 @@ parseWithoutDest' bs i = case bs BSC.!? i of
     '(' -> parseListWithoutDest' bs (i + 1) []
     '"' -> parseStringWithoutDest' bs (i + 1) False []
     _ ->
-      let token = nextTokenAt i bs
+      let token = extractNextToken bs i
        in if BSC.null token
             then -- c is a (leading) space because we matched against the other cases before
               parseWithoutDest' bs (i + 1)
@@ -185,7 +185,7 @@ parseWithDest' bs i d = case bs BSC.!? i of
     '(' -> let !(dEndPos, dList) = d & fill @'SList in parseListWithDest' bs (i + 1) dEndPos dList
     '"' -> let !(dEndPos, dStr) = d & fill @'SString in parseStringWithDest' bs (i + 1) False dEndPos dStr
     _ ->
-      let token = nextTokenAt i bs
+      let token = extractNextToken bs i
        in if BSC.null token
             then -- c is a (leading) space because we matched against the other cases before
               parseWithDest' bs (i + 1) d
@@ -214,7 +214,7 @@ parseWithDest :: ByteString -> Either SExprParseError SExpr
 parseWithDest bs =
   let Ur (sexpr, res) =
         withRegion $ \r ->
-          fromRegExtract
+          fromRegionExtract
             $ alloc r
             <&> \d ->
               move $ parseWithDest' bs 0 d

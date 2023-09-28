@@ -99,7 +99,7 @@ mapTRST f = go []
 
 mapDestTRL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestTRL f l =
-  fromReg $ alloc (getToken @r) <&> go l
+  fromRegion $ alloc (getToken @r) <&> go l
   where
     go [] dl = dl & fill @'[]
     go (x : xs) dl = case dl & fill @'(:) of
@@ -107,7 +107,7 @@ mapDestTRL f l =
 
 mapDestTRS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestTRS f l =
-  fromReg $ alloc (getToken @r) <&> go l
+  fromRegion $ alloc (getToken @r) <&> go l
   where
     go [] dl = dl & fill @'[]
     go (x : xs) dl = case dl & fill @'(:) of
@@ -115,7 +115,7 @@ mapDestTRS f l =
 
 mapDestFL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestFL f l =
-  fromReg $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> dh & fillLeaf (f x) `lseq` dt
@@ -125,7 +125,7 @@ mapDestFL f l =
 
 mapDestFSL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestFSL f l =
-  fromReg $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> dh & fillLeaf (f x) `lseq` dt
@@ -135,7 +135,7 @@ mapDestFSL f l =
 
 mapDestFLS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestFLS f l =
-  fromReg $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` dt
@@ -145,7 +145,7 @@ mapDestFLS f l =
 
 mapDestFS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
 mapDestFS f l =
-  fromReg $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` dt

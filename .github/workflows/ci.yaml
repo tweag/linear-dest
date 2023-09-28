@@ -33,7 +33,7 @@ jobs:
     - name: exe:dump target - run -s benchmark without dest (force)
       run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark without dest (copy into region)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyReg -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark with dest
       run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
     - name: bench:memory target - build -T benchmark
@@ -49,7 +49,7 @@ jobs:
     - name: bench:memory target - run profiling without dest (force)
       run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
     - name: bench:memory target - run profiling without dest (copy into region)
-      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyRegion' && mv memory.prof memory_without_dest_copy_region.prof"
     - name: bench:memory target - run profiling with dest
       run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
     - name: Upload results
@@ -60,7 +60,7 @@ jobs:
           test_results.txt
           benchmark_results.txt
           memory_without_dest_force.prof
-          memory_without_dest_copy_reg.prof
+          memory_without_dest_copy_region.prof
           memory_with_dest.prof
           ./dist-newstyle/build/x86_64-linux/ghc-9.9.20230911/linear-dest-0.2.0/build/**/*.dump-simpl
         retention-days: 30
