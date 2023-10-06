@@ -32,14 +32,14 @@ nonDestImpls =
     (mapTRST, "mapTRST")
   ]
 
-destImpls :: [(forall (r :: Type) a b. (RegionContext r) => RegionToken r %1 -> (a %1 -> b) -> [a] -> Ur [b], String)]
+destImpls :: [(forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> (), String)]
 destImpls =
-  [ (\(t :: RegionToken r) -> consume t `lseq` mapDestTRL @r, "mapDestTRL"),
-    (\(t :: RegionToken r) -> consume t `lseq` mapDestTRS @r, "mapDestTRS"),
-    (\(t :: RegionToken r) -> consume t `lseq` mapDestFL @r, "mapDestFL"),
-    (\(t :: RegionToken r) -> consume t `lseq` mapDestFLS @r, "mapDestFLS"),
-    (\(t :: RegionToken r) -> consume t `lseq` mapDestFSL @r, "mapDestFSL"),
-    (\(t :: RegionToken r) -> consume t `lseq` mapDestFS @r, "mapDestFS")
+  [ (mapDestTRL, "mapDestTRL"),
+    (mapDestTRS, "mapDestTRS"),
+    (mapDestFL, "mapDestFL"),
+    (mapDestFLS, "mapDestFLS"),
+    (mapDestFSL, "mapDestFSL"),
+    (mapDestFS, "mapDestFS")
   ]
   where
 
@@ -97,25 +97,19 @@ mapTRST f = go []
       let !cons = (f x) : acc
        in go cons xs
 
-mapDestTRL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestTRL f l =
-  fromRegion $ alloc (getToken @r) <&> go l
-  where
-    go [] dl = dl & fill @'[]
-    go (x : xs) dl = case dl & fill @'(:) of
-      (dh, dt) -> dh & fillLeaf (f x) `lseq` go xs dt
+mapDestTRL :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestTRL f [] dl = dl & fill @'[]
+mapDestTRL f (x : xs) dl = case dl & fill @'(:) of
+  (dh, dt) -> dh & fillLeaf (f x) `lseq` mapDestTRL f xs dt
 
-mapDestTRS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestTRS f l =
-  fromRegion $ alloc (getToken @r) <&> go l
-  where
-    go [] dl = dl & fill @'[]
-    go (x : xs) dl = case dl & fill @'(:) of
-      (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` go xs dt
+mapDestTRS :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestTRS f [] dl = dl & fill @'[]
+mapDestTRS f (x : xs) dl = case dl & fill @'(:) of
+  (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` mapDestTRS f xs dt
 
-mapDestFL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestFL f l =
-  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+mapDestFL :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestFL f l dl =
+  (foldl_ fillConsF dl l) & fill @'[]
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> dh & fillLeaf (f x) `lseq` dt
@@ -123,9 +117,9 @@ mapDestFL f l =
     foldl_ _ s [] = s
     foldl_ f s (x : xs) = foldl_ f (f s x) xs
 
-mapDestFSL :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestFSL f l =
-  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+mapDestFSL :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestFSL f l dl =
+  (foldl_ fillConsF dl l) & fill @'[]
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> dh & fillLeaf (f x) `lseq` dt
@@ -133,9 +127,9 @@ mapDestFSL f l =
     foldl_ _ s [] = s
     foldl_ f s (x : xs) = let !r = (f s x) in foldl_ f r xs
 
-mapDestFLS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestFLS f l =
-  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+mapDestFLS :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestFLS f l dl =
+  (foldl_ fillConsF dl l) & fill @'[]
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` dt
@@ -143,9 +137,9 @@ mapDestFLS f l =
     foldl_ _ s [] = s
     foldl_ f s (x : xs) = foldl_ f (f s x) xs
 
-mapDestFS :: forall (r :: Type) a b. (RegionContext r) => (a %1 -> b) -> [a] -> Ur [b]
-mapDestFS f l =
-  fromRegion $ alloc (getToken @r) <&> (\dl -> foldl_ fillConsF dl l) <&> (\dl -> fill @'[] dl)
+mapDestFS :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
+mapDestFS f l dl =
+  (foldl_ fillConsF dl l) & fill @'[]
   where
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` dt

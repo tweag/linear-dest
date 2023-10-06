@@ -23,6 +23,7 @@ import qualified Data.ByteString.Char8 as BSC
 import Data.Char (isSpace)
 import GHC.Generics (Generic)
 import Prelude.Linear
+import Data.Proxy (Proxy)
 import qualified Prelude as NonLinear
 
 loadSampleData :: IO ByteString
@@ -124,7 +125,7 @@ parseStringWithoutDest' bs i escape acc = case bs BSC.!? i of
     'n' | escape -> parseStringWithoutDest' bs (i + 1) False ('\n' : acc)
     _ -> parseStringWithoutDest' bs (i + 1) False (c : acc)
 
-parseStringWithDest' :: (RegionContext r) => ByteString -> Int -> Bool -> Dest r Int %1 -> Dest r [Char] %1 -> Either SExprParseError Int
+parseStringWithDest' :: (Region r) => ByteString -> Int -> Bool -> Dest r Int %1 -> Dest r [Char] %1 -> Either SExprParseError Int
 parseStringWithDest' bs i escape dEndPos d = case bs BSC.!? i of
   Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSString i
   Just c -> case c of
@@ -146,7 +147,7 @@ parseListWithoutDest' bs i acc = case bs BSC.!? i of
           Left err -> Left err
           Right children -> parseListWithoutDest' bs (endPos children + 1) (children : acc)
 
-parseListWithDest' :: (RegionContext r) => ByteString -> Int -> Dest r Int %1 -> Dest r [SExpr] %1 -> Either SExprParseError Int
+parseListWithDest' :: (Region r) => ByteString -> Int -> Dest r Int %1 -> Dest r [SExpr] %1 -> Either SExprParseError Int
 parseListWithDest' bs i dEndPos d = case bs BSC.!? i of
   Nothing -> dEndPos & fillLeaf (-1) `lseq` d & fill @'[] `lseq` Left $ UnexpectedEOFSList i
   Just c ->
@@ -177,7 +178,7 @@ parseWithoutDest' bs i = case bs BSC.!? i of
               Just (int, remaining) | BSC.null remaining -> Right $ SInteger (i + BSC.length token - 1) int
               _ -> Right $ SSymbol (i + BSC.length token - 1) (BSC.unpack token)
 
-parseWithDest' :: (RegionContext r) => ByteString -> Int -> Dest r SExpr %1 -> Either SExprParseError Int
+parseWithDest' :: (Region r) => ByteString -> Int -> Dest r SExpr %1 -> Either SExprParseError Int
 parseWithDest' bs i d = case bs BSC.!? i of
   Nothing -> d & fillLeaf defaultSExpr `lseq` Left $ UnexpectedEOFSExpr i
   Just c -> case c of
@@ -213,9 +214,9 @@ parseWithoutDest bs = case parseWithoutDest' bs 0 of
 parseWithDest :: ByteString -> Either SExprParseError SExpr
 parseWithDest bs =
   let Ur (sexpr, res) =
-        withRegion $ \r ->
-          fromRegionExtract
-            $ alloc r
+        withRegion $ \(_ :: Proxy r) token ->
+          fromIncomplete
+            $ alloc @r token
             <&> \d ->
               move $ parseWithDest' bs 0 d
    in case res of

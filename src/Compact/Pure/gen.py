@@ -1,11 +1,11 @@
 template = """
 -- TODO: add constraints on ds_i variables to ensure no unpacking
-instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol liftedCtor ~ symCtor, 'Just '(metaCtor, '[ {metaSelList}]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# liftedCtor '(metaCtor, '[ {metaSelList}]) a where
+instance (Generic a, repA ~ Rep a (), metaA ~ GDatatypeMetaOf repA, Datatype metaA, 'MetaCons symCtor fix hasSel ~ metaCtor, Constructor metaCtor, LiftedCtorToSymbol lCtor ~ symCtor, 'Just '(metaCtor, '[ {metaSelList}]) ~ GSpecCtorOf symCtor (Rep a ())) => GFill# lCtor '(metaCtor, '[ {metaSelList}]) a where
   gFill# :: forall (r :: Type). Compact# -> MVar# RealWorld () -> Dest# a -> State# RealWorld -> (# State# RealWorld, GDestsOf '(metaCtor, '[ {metaSelList}]) r #)
   gFill# c# m# d# s0 =
     case takeMVar# m# s0 of
       (# s1, () #) ->
-        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# liftedCtor)) s1 of
+        case compactAddShallow# c# (unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# lCtor)) s1 of
           (# s2, xInRegion #) -> case affect# d# xInRegion s2 of
             (# s3, pXInRegion# #) -> case getSlots{n}# xInRegion s3 of
               (# s4, (# {destPrimList} #) #) -> case putMVar# m# () s4 of

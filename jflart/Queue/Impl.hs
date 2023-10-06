@@ -44,19 +44,19 @@ dequeueN (NaiveQueue l r) = case l of
 
 data Queue r a = Queue [a] (DList r a)
 
-new :: forall r a. (RegionContext r) => Queue r a
+new :: forall r a. (Region r) => Queue r a
 new = Queue [] (DList.new @r)
 
-singleton :: forall r a. (RegionContext r) => a -> Queue r a
+singleton :: forall r a. (Region r) => a -> Queue r a
 singleton x = Queue [x] (DList.new @r)
 
-toList :: forall r a. (RegionContext r) => Queue r a %1 -> [a]
+toList :: forall r a. (Region r) => Queue r a %1 -> [a]
 toList (Queue l dl) = l ++ DList.toList dl
 
-enqueue :: forall r a. (RegionContext r) => Queue r a %1 -> a -> Queue r a
+enqueue :: forall r a. (Region r) => Queue r a %1 -> a -> Queue r a
 enqueue (Queue l dl) x = Queue l (DList.append dl x)
 
-dequeue :: forall r a. (RegionContext r) => Queue r a %1 -> Maybe (a, Queue r a)
+dequeue :: forall r a. (Region r) => Queue r a %1 -> Maybe (a, Queue r a)
 dequeue (Queue l dl) = case l of
   [] -> case DList.toList dl of
     [] -> Nothing

@@ -20,16 +20,37 @@ import Prelude.Linear
 
 newtype DList r a = DList (Incomplete r [a] (Dest r [a]))
 
-new :: forall r a. (RegionContext r) => DList r a
-new = DList (alloc (getToken @r))
+new :: forall r a. (Region r) => Token %1 -> DList r a
+new token = DList (alloc @r token)
 
-append :: forall r a. (RegionContext r) => DList r a %1 -> a -> DList r a
+append :: forall r a. (Region r) => DList r a %1 -> a -> DList r a
 append (DList i) x =
   DList $ i <&> \dl -> case dl & fill @'(:) of
     (dh, dt) -> dh & fillLeaf x `lseq` dt
 
-concat :: forall r a. (RegionContext r) => DList r a %1 -> DList r a %1 -> DList r a
+concat :: forall r a. (Region r) => DList r a %1 -> DList r a %1 -> DList r a
 concat (DList i1) (DList i2) = DList $ i1 <&> \dl -> dl & fillComp i2
 
-toList :: forall r a. (RegionContext r) => DList r a %1 -> [a]
-toList (DList i) = unur . fromRegion $ i <&> \dl -> dl & fill @'[]
+toList :: forall r a. (Region r) => DList r a %1 -> [a]
+toList (DList i) = unur . fromIncomplete_ $ i <&> \dl -> dl & fill @'[]
+
+fromList :: forall r a. (Region r) => Token %1 -> [a] -> DList r a
+fromList token l = DList (alloc @r token <&> \d -> go d l) where
+  go dl [] = dl
+  go dl (x:xs) = case dl & fill @'(:) of (dh, dt) -> dh & fillLeaf x `lseq` go dt xs
+
+-- newtype DListN a = DList ([a] -> [a])
+
+-- newN :: forall a. DListN a
+-- newN = DList (alloc (getToken @r))
+
+-- appendN :: forall r a. (Region r) => DList r a %1 -> a -> DList r a
+-- appendN (DList i) x =
+--   DList $ i <&> \dl -> case dl & fill @'(:) of
+--     (dh, dt) -> dh & fillLeaf x `lseq` dt
+
+-- concatN :: forall r a. (Region r) => DList r a %1 -> DList r a %1 -> DList r a
+-- concat (DList i1) (DList i2) = DList $ i1 <&> \dl -> dl & fillComp i2
+
+-- toListN :: forall r a. (Region r) => DList r a %1 -> [a]
+-- toListN (DList i) = unur . fromIncomplete_ $ i <&> \dl -> dl & fill @'[]

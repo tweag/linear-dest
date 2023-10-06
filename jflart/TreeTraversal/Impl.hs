@@ -32,27 +32,13 @@ data BinTree a where
 
 pattern Leaf x = Node x Nil Nil
 
-mapMBreadth :: forall a b m. (Monad m) => (a %1 -> m b) -> BinTree a -> m (Ur (BinTree b))
-mapMBreadth f tree =
-  withRegionM $ \(token :: RegionToken r) -> fromRegionM $ alloc token <&> \dtree -> go (singletonN (tree, dtree))
-  where
-    go :: forall r. (RegionContext r) => NaiveQueue (BinTree a, Dest r (BinTree b)) %1 -> m ()
-    go q = case dequeueN q of
-      Nothing -> return ()
-      Just ((tree, dtree), q') -> case tree of
-        Nil -> dtree & fill @'Nil `lseq` go q'
-        Node x tl tr -> case dtree & fill @'Node of
-          (dr, dtl, dtr) ->
-            let q'' = q' `enqueueN` (tl, dtl) `enqueueN` (tr, dtr)
-             in f x >>= \r -> dr & fillLeaf r `lseq` go q''
-
 mapAccumBFS :: forall a b s. (s -> a -> (s, b)) -> s -> BinTree a -> (s, BinTree b)
 mapAccumBFS f s0 tree =
   (\(Ur (x, y)) -> (y, x)) . withRegion $
-    \(token :: RegionToken r) -> fromRegionExtract $ alloc token <&>
+    \(_ :: Proxy r) token -> fromIncomplete $ alloc token <&>
       \dtree -> go s0 (singletonN (Ur tree, dtree))
   where
-    go :: forall r. (RegionContext r) => s -> NaiveQueue (Ur (BinTree a), Dest r (BinTree b)) %1 -> Ur s
+    go :: forall r. (Region r) => s -> NaiveQueue (Ur (BinTree a), Dest r (BinTree b)) %1 -> Ur s
     go s q = case dequeueN q of
       Nothing -> Ur s
       Just ((utree, dtree), q') -> case utree of
