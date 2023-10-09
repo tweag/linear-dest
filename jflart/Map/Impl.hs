@@ -15,7 +15,6 @@
 module Map.Impl where
 
 import Compact.Pure
-import Control.Functor.Linear ((<&>))
 import Data.Kind (Type)
 import Prelude.Linear
 
@@ -98,12 +97,12 @@ mapTRST f = go []
        in go cons xs
 
 mapDestTRL :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
-mapDestTRL f [] dl = dl & fill @'[]
+mapDestTRL _ [] dl = dl & fill @'[]
 mapDestTRL f (x : xs) dl = case dl & fill @'(:) of
   (dh, dt) -> dh & fillLeaf (f x) `lseq` mapDestTRL f xs dt
 
 mapDestTRS :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()
-mapDestTRS f [] dl = dl & fill @'[]
+mapDestTRS _ [] dl = dl & fill @'[]
 mapDestTRS f (x : xs) dl = case dl & fill @'(:) of
   (dh, dt) -> let !r = f x in dh & fillLeaf r `lseq` mapDestTRS f xs dt
 
@@ -111,6 +110,7 @@ mapDestFL :: forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r 
 mapDestFL f l dl =
   (foldl_ fillConsF dl l) & fill @'[]
   where
+    fillConsF :: Dest r [b] %1 -> a -> Dest r [b]
     fillConsF dl x = case dl & fill @'(:) of
       (dh, dt) -> dh & fillLeaf (f x) `lseq` dt
     foldl_ :: forall a b. (a %1 -> b -> a) -> a %1 -> [b] -> a

@@ -3,13 +3,14 @@ module Compact.Pure
     Region,
     withRegion,
     Incomplete,
+    piggyback,
     alloc,
     intoIncomplete,
     fromIncomplete_,
     fromIncomplete,
     Dest,
     DestsOf,
-    Fill (fill),
+    fill,
     fillComp,
     fillLeaf
   )

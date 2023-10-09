@@ -131,12 +131,6 @@ getRegionInfo :: forall r. Region r => RegionInfo
 getRegionInfo = reflect (Proxy :: Proxy r)
 {-# INLINE getRegionInfo #-}
 
-data Dest r a = Dest Addr#
-
-newtype Incomplete r a b = Incomplete (a, b)
-  deriving (Data.Functor) via Data (Incomplete r a)
-  deriving (Control.Functor)
-
 withRegion :: forall b. (forall (r :: Type). (Region r) => Proxy r -> Token %1 -> Ur b) %1 -> Ur b
 withRegion = toLinear _withRegion
 {-# INLINE withRegion #-}
@@ -153,26 +147,35 @@ _withRegion f =
         ++ (show firstPtr)
     return $! reify (RegionInfo c) (\(proxy :: Proxy s) -> f @s proxy Token)
 
-fillComp :: forall r a b. (Region r) => Incomplete r a b %1 -> Dest r a %1 -> b
-fillComp = toLinear2 _fillComp
-{-# INLINE fillComp #-}
+newtype Incomplete r a b = Incomplete (a, b)
+  deriving (Data.Functor) via Data (Incomplete r a)
+  deriving (Control.Functor)
 
-fillLeaf :: forall r a. (Region r) => a -> Dest r a %1 -> ()
-fillLeaf x = fillComp (intoIncomplete @r Token x)
-{-# INLINE fillLeaf #-}
+piggyback :: forall r a b. (Region r) => Incomplete r a b %1 -> (Incomplete r a b, Token)
+piggyback i = (i, Token)
+{-# INLINE piggyback #-}
 
-_fillComp :: forall r a b. (Region r) => Incomplete r a b -> Dest r a -> b
-_fillComp (Incomplete (root, companion)) (Dest d#) = case runRW# $ \s0 -> case affect# d# root s0 of
-  (# s1, pRoot# #) -> putDebugLn# message (# s1, companion #)
-    where
-      message =
-        ( "fillComp: @"
-            ++ (show . ptrToWord $ Ptr d#)
-            ++ " <- #"
-            ++ (show . ptrToWord $ Ptr pRoot#)
-            ++ ": [Incomplete OR value]"
-        ) of
-  (# _, res #) -> res
+alloc :: forall r a. (Region r) => Token %1 -> Incomplete r a (Dest r a)
+alloc = toLinear _alloc
+
+{-# INLINE _alloc #-}
+_alloc :: forall r a. (Region r) => Token -> Incomplete r a (Dest r a)
+_alloc _ = case getRegionInfo @r of
+  RegionInfo (Compact c# _ (MVar m#)) -> case indInfoPtr of
+    Ptr indInfoAddr# -> case runRW# $ \s0 -> case takeMVar# m# s0 of
+      (# s1, () #) -> case compactAddShallow# @a c# indInfoAddr# s1 of
+        (# s2, indRoot #) -> case anyToAddr# indRoot s2 of
+          (# s3, pIndRoot# #) -> case getSlots1# indRoot s3 of
+            (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
+              s5 -> putDebugLn# message (# s5, Incomplete (indRoot, Dest dRoot#) #)
+                where
+                  message =
+                    ( "alloc: [region] <- #"
+                        ++ (show . ptrToWord $ Ptr pIndRoot#)
+                        ++ ": IND _@"
+                        ++ (show . ptrToWord $ Ptr dRoot#)
+                    ) of
+      (# _, res #) -> res
 
 intoIncomplete :: forall r a. (Region r) => Token %1 -> a -> Incomplete r a ()
 intoIncomplete = toLinear2 _intoIncomplete
@@ -191,6 +194,34 @@ _intoIncomplete _ x = case getRegionInfo @r of
                   ++ ": [value]"
               ) of
     (# _, res #) -> res
+
+fromIncomplete_ :: forall r a. (Region r) => Incomplete r a () %1 -> Ur a
+fromIncomplete_ = toLinear _fromIncomplete_
+
+{-# NOINLINE _fromIncomplete_ #-}
+_fromIncomplete_ :: forall r a. (Region r) => Incomplete r a () -> Ur a
+_fromIncomplete_ (Incomplete (root, ())) = case getRegionInfo @r of
+  (RegionInfo (Compact c# _ (MVar m#))) -> case runRW# $ \s0 -> case takeMVar# m# s0 of
+    (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
+      (# s2, receiver #) -> case anyToAddr# receiver s2 of
+        (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
+          (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
+            s5 -> case affect# dRoot# root s5 of
+              (# s6, pRoot# #) -> putDebugLn# message (# s6, receiver #)
+                where
+                  message =
+                    ( "fromIncomplete_: [region] <- #"
+                        ++ (show . ptrToWord $ Ptr pReceiver#)
+                        ++ ": Ur _@"
+                        ++ (show . ptrToWord $ Ptr dRoot#)
+                        ++ "\nfromIncomplete: @"
+                        ++ (show . ptrToWord $ Ptr dRoot#)
+                        ++ " <- #"
+                        ++ (show . ptrToWord $ Ptr pRoot#)
+                        ++ ": [root]"
+                    ) of
+    (# _, res #) -> res
+
 
 fromIncomplete :: forall r a b. (Region r) => Incomplete r a (Ur b) %1 -> Ur (a, b)
 fromIncomplete = toLinear _fromIncomplete
@@ -238,67 +269,45 @@ _fromIncomplete (Incomplete (root, uCompanion)) = case getRegionInfo @r of
                                 ) of
     (# _, res #) -> res
 
-fromIncomplete_ :: forall r a. (Region r) => Incomplete r a () %1 -> Ur a
-fromIncomplete_ = toLinear _fromIncomplete_
-
-{-# NOINLINE _fromIncomplete_ #-}
-_fromIncomplete_ :: forall r a. (Region r) => Incomplete r a () -> Ur a
-_fromIncomplete_ (Incomplete (root, ())) = case getRegionInfo @r of
-  (RegionInfo (Compact c# _ (MVar m#))) -> case runRW# $ \s0 -> case takeMVar# m# s0 of
-    (# s1, () #) -> case compactAddShallow# @(Ur a) c# ((unsafeCoerceAddr (reifyStgInfoPtr# (# #) :: InfoPtrPlaceholder# 'Ur))) s1 of
-      (# s2, receiver #) -> case anyToAddr# receiver s2 of
-        (# s3, pReceiver# #) -> case getSlots1# receiver s3 of
-          (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
-            s5 -> case affect# dRoot# root s5 of
-              (# s6, pRoot# #) -> putDebugLn# message (# s6, receiver #)
-                where
-                  message =
-                    ( "fromIncomplete_: [region] <- #"
-                        ++ (show . ptrToWord $ Ptr pReceiver#)
-                        ++ ": Ur _@"
-                        ++ (show . ptrToWord $ Ptr dRoot#)
-                        ++ "\nfromIncomplete: @"
-                        ++ (show . ptrToWord $ Ptr dRoot#)
-                        ++ " <- #"
-                        ++ (show . ptrToWord $ Ptr pRoot#)
-                        ++ ": [root]"
-                    ) of
-    (# _, res #) -> res
-
-alloc :: forall r a. (Region r) => Token %1 -> Incomplete r a (Dest r a)
-alloc = toLinear _alloc
-
-{-# INLINE _alloc #-}
-_alloc :: forall r a. (Region r) => Token -> Incomplete r a (Dest r a)
-_alloc _ = case getRegionInfo @r of
-  RegionInfo (Compact c# _ (MVar m#)) -> case indInfoPtr of
-    Ptr indInfoAddr# -> case runRW# $ \s0 -> case takeMVar# m# s0 of
-      (# s1, () #) -> case compactAddShallow# @a c# indInfoAddr# s1 of
-        (# s2, indRoot #) -> case anyToAddr# indRoot s2 of
-          (# s3, pIndRoot# #) -> case getSlots1# indRoot s3 of
-            (# s4, (# dRoot# #) #) -> case putMVar# m# () s4 of
-              s5 -> putDebugLn# message (# s5, Incomplete (indRoot, Dest dRoot#) #)
-                where
-                  message =
-                    ( "alloc: [region] <- #"
-                        ++ (show . ptrToWord $ Ptr pIndRoot#)
-                        ++ ": IND _@"
-                        ++ (show . ptrToWord $ Ptr dRoot#)
-                    ) of
-      (# _, res #) -> res
-
 -------------------------------------------------------------------------------
 -- Metaprogramming stuff for dests
 -------------------------------------------------------------------------------
 
+data Dest r a = Dest Addr#
+
+fill :: forall lCtor (r :: Type) (a :: Type). (Fill lCtor a, Region r) => Dest r a %1 -> DestsOf lCtor r a
+fill = toLinear (_fill @lCtor @a @r)
+{-# INLINE fill #-}
+
+fillComp :: forall r a b. (Region r) => Incomplete r a b %1 -> Dest r a %1 -> b
+fillComp = toLinear2 _fillComp
+{-# INLINE fillComp #-}
+
+fillLeaf :: forall r a. (Region r) => a -> Dest r a %1 -> ()
+fillLeaf x = fillComp (intoIncomplete @r Token x)
+{-# INLINE fillLeaf #-}
+
+_fillComp :: forall r a b. (Region r) => Incomplete r a b -> Dest r a -> b
+_fillComp (Incomplete (root, companion)) (Dest d#) = case runRW# $ \s0 -> case affect# d# root s0 of
+  (# s1, pRoot# #) -> putDebugLn# message (# s1, companion #)
+    where
+      message =
+        ( "fillComp: @"
+            ++ (show . ptrToWord $ Ptr d#)
+            ++ " <- #"
+            ++ (show . ptrToWord $ Ptr pRoot#)
+            ++ ": [Incomplete OR value]"
+        ) of
+  (# _, res #) -> res
+
 class Fill lCtor (a :: Type) where
-  fill :: forall (r :: Type). Region r => Dest r a -> DestsOf lCtor r a
+  _fill :: forall (r :: Type). Region r => Dest r a -> DestsOf lCtor r a
 
 instance (specCtor ~ LiftedCtorToSpecCtor lCtor a, GFill# lCtor specCtor a) => Fill lCtor a where
-  fill :: forall (r :: Type). Region r =>  Dest r a -> DestsOf lCtor r a
-  fill (Dest d#) = case getRegionInfo @r of
+  _fill :: forall (r :: Type). Region r =>  Dest r a -> DestsOf lCtor r a
+  _fill (Dest d#) = case getRegionInfo @r of
     (RegionInfo (Compact c# _ (MVar m#))) -> case runRW# (gFill# @lCtor @specCtor @a @r c# m# d#) of (# _, res #) -> res
-  {-# INLINE fill #-}
+  {-# INLINE _fill #-}
 
 -- ctor :: (Meta, [(Meta, Type)])
 class GFill# lCtor (specCtor :: (Meta, [(Meta, Type)])) (a :: Type) where

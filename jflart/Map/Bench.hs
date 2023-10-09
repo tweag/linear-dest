@@ -13,16 +13,18 @@
 
 module Map.Bench (benchmark, safety) where
 
-import Compact.Pure (RegionToken, withRegion)
+import Compact.Pure
 import Control.DeepSeq (NFData, force)
 import Control.Exception (evaluate)
 import Data.Functor ((<&>))
 import GHC.Compact (compact, getCompact)
 import Map.Impl
 import Prelude.Linear (unur)
+import qualified Control.Functor.Linear as Lin
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Bench
 import Test.Tasty.HUnit
+import Data.Proxy (Proxy)
 
 safety :: forall a b. (Eq b, Show b) => [a] -> (a %1 -> b) -> TestTree
 safety sampleData f =
@@ -30,12 +32,9 @@ safety sampleData f =
     destImpls <&> \(impl, implName) ->
       testCaseInfo ("mapL and " ++ implName ++ " give the same result") $ do
         let ref = mapL f sampleData
-            experimental = unur (withRegion (\(_ :: Proxy r) t -> impl @r @a @b t f sampleData))
+            experimental = unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ (alloc @r t Lin.<&> \d -> impl f sampleData d)))
         assertEqual "same result" ref experimental
         return $ show $ take (min 10 (length sampleData)) $ experimental
-
---  :: (forall a' b'. (a' %1 -> b') -> [a'] %1 -> [b'])
---  :: (forall (r' :: Type) a' b'. Region r' => Token' %1 -> (a' %1 -> b') -> [a'] -> Ur [b'])
 
 benchmark :: forall a b. (NFData b) => [a] -> (a %1 -> b) -> Benchmark
 benchmark sampleData f =
@@ -52,6 +51,6 @@ benchmark sampleData f =
       )
         ++ ( destImpls <&> \(impl, implName) ->
                bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> do
-                 evaluate $ unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ $ alloc @r t <&> \dl -> impl @r @a @b f sampleData dl))
+                 evaluate $ unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ (alloc @r t Lin.<&> \d -> impl f sampleData d)))
            )
     )

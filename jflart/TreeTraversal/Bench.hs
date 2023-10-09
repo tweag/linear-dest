@@ -16,14 +16,8 @@
 
 module TreeTraversal.Bench (safety) where
 
-import Compact.Pure (RegionToken, withRegion)
-import Control.DeepSeq (NFData, force)
-import Control.Exception (evaluate)
-import Control.Functor.Linear
-import GHC.Compact (compact, getCompact)
 import Prelude.Linear
 import Test.Tasty (TestTree, testGroup)
-import Test.Tasty.Bench
 import Test.Tasty.HUnit
 import TreeTraversal.Impl
 import qualified Prelude as NonLin
@@ -32,7 +26,7 @@ safety :: TestTree
 safety =
   testGroup
     "safety"
-    [ testCaseInfo "mapMBreadth" $ do
+    [ testCaseInfo "mapAccumBFS" $ do
         let ref :: (BinTree Int, Int)
             ref =
               ( Node
@@ -47,15 +41,8 @@ safety =
                 ()
                 (Node () (Leaf ()) (Leaf ()))
                 (Node () (Leaf ()) Nil)
-            setNodeNbAndIncr :: () %1 -> State Int Int
-            setNodeNbAndIncr () =
-              get >>= \c ->
-                let !(c1, c2) = dup2 c
-                 in put (c1 + 1) >>= \() ->
-                      return c2
-            experimental = runState (mapMBreadth setNodeNbAndIncr base) 0
-            experimental' :: (BinTree Int, Int)
-            experimental' = let !(u, c) = experimental in (unur u, c)
-        assertEqual "same result" ref experimental'
-        NonLin.return $ show $ experimental'
+            experimental :: (BinTree Int, Int)
+            experimental = mapAccumBFS (\s _ -> (s + 1, s)) 0 base
+        assertEqual "same result" ref experimental
+        NonLin.return $ show $ experimental
     ]
