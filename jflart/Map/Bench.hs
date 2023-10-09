@@ -9,9 +9,10 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
-module Map.Bench (benchmark, safety) where
+module Map.Bench (benchmark, safety, getBenchgroup) where
 
 import Compact.Pure
 import Control.DeepSeq (NFData, force)
@@ -19,12 +20,19 @@ import Control.Exception (evaluate)
 import Data.Functor ((<&>))
 import GHC.Compact (compact, getCompact)
 import Map.Impl
-import Prelude.Linear (unur)
+import Prelude.Linear (unur, (+), (*))
+import Prelude hiding ((+), (*))
 import qualified Control.Functor.Linear as Lin
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Bench
 import Test.Tasty.HUnit
 import Data.Proxy (Proxy)
+
+loadListData :: IO [Int]
+loadListData = evaluate =<< force <$> return [1 .. 100000]
+
+listTransformer :: Int %1 -> Int
+listTransformer x = 2 * x + 1
 
 safety :: forall a b. (Eq b, Show b) => [a] -> (a %1 -> b) -> TestTree
 safety sampleData f =
@@ -34,7 +42,7 @@ safety sampleData f =
         let ref = mapL f sampleData
             experimental = unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ (alloc @r t Lin.<&> \d -> impl f sampleData d)))
         assertEqual "same result" ref experimental
-        return $ show $ take (min 10 (length sampleData)) $ experimental
+        return $ show $ take (min 10 (length experimental)) $ experimental
 
 benchmark :: forall a b. (NFData b) => [a] -> (a %1 -> b) -> Benchmark
 benchmark sampleData f =
@@ -54,3 +62,11 @@ benchmark sampleData f =
                  evaluate $ unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ (alloc @r t Lin.<&> \d -> impl f sampleData d)))
            )
     )
+
+getBenchgroup :: IO Benchmark
+getBenchgroup = do
+  !listData <- loadListData
+  return $ bgroup "map"
+    [ benchmark listData listTransformer,
+      safety listData listTransformer
+    ]

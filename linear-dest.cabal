@@ -130,7 +130,9 @@ benchmark jflart
         Map.Bench
         Map.Impl
         DList.Impl
+        DList.Bench
         Queue.Impl
+        Queue.Bench
         TreeTraversal.Bench
         TreeTraversal.Impl
     build-depends:
@@ -139,6 +141,7 @@ benchmark jflart
         deepseq,
         ghc-compact,
         linear-dest,
+        mtl,
         containers,
         vector,
         tasty,

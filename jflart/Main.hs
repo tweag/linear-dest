@@ -12,27 +12,24 @@
 
 module Main (main) where
 
-import Control.DeepSeq (force)
-import Control.Exception (evaluate)
-import qualified Map.Bench as Map
-import qualified Prelude.Linear as Lin
 import Test.Tasty.Bench
+import qualified Map.Bench as Map
 import qualified TreeTraversal.Bench as TreeTraversal
+import qualified DList.Bench as DList
+import qualified Queue.Bench as Queue
 
 -- run with
 -- cabal bench -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS'
 
-loadListSampleData :: IO [Int]
-loadListSampleData = return [1 .. 100000]
-
-listTransformer :: Int %1 -> Int
-listTransformer x = 2 Lin.* x Lin.+ 1
-
 main :: IO ()
 main = do
-  !listSampleData <- evaluate =<< force <$> loadListSampleData
+  !queueBenchgroup <- Queue.getBenchgroup
+  !mapBenchgroup <- Map.getBenchgroup
+  !dlistBenchgroup <- DList.getBenchgroup
+  !treeTraversalBenchgroup <- TreeTraversal.getBenchgroup
   defaultMain
-    [ Map.benchmark listSampleData listTransformer,
-      Map.safety listSampleData listTransformer,
-      TreeTraversal.safety
+    [ mapBenchgroup,
+      dlistBenchgroup,
+      queueBenchgroup,
+      treeTraversalBenchgroup
     ]

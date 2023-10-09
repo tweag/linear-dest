@@ -15,7 +15,7 @@
 module Queue.Impl where
 
 import Compact.Pure
-import DList.Impl (DList (DList))
+import DList.Impl (DList (DList), DListN)
 import qualified DList.Impl as DList
 import Prelude.Linear
 
@@ -39,6 +39,27 @@ dequeueN (NaiveQueue l r) = case l of
     [] -> Nothing
     (x : xs) -> Just (x, NaiveQueue xs [])
   (x : xs) -> Just (x, NaiveQueue xs r)
+
+data QueueF a = QueueF [a] (DListN a)
+
+newF :: forall a. QueueF a
+newF = QueueF [] DList.newN
+
+singletonF :: forall a. a %1 -> QueueF a
+singletonF x = QueueF [x] DList.newN
+
+toListF :: forall a. QueueF a %1 -> [a]
+toListF (QueueF l dl) = l ++ DList.toListN dl
+
+enqueueF :: forall a. QueueF a %1 -> a %1 -> QueueF a
+enqueueF (QueueF l dl) x = QueueF l (DList.appendN dl x)
+
+dequeueF :: forall a. QueueF a %1 -> Maybe (a, QueueF a)
+dequeueF (QueueF l dl) = case l of
+  [] -> case DList.toListN dl of
+    [] -> Nothing
+    (x : xs) -> Just (x, QueueF xs DList.newN)
+  (x : xs) -> Just (x, QueueF xs dl)
 
 data Queue r a = Queue [a] (DList r a)
 

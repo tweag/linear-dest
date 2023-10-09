@@ -34,6 +34,9 @@ concat (DList i1) (DList i2) = DList $ i1 <&> \dl -> dl & fillComp i2
 toList :: forall r a. (Region r) => DList r a %1 -> [a]
 toList (DList i) = unur $ fromIncomplete_ $ i <&> \dl -> dl & fill @'[]
 
+toUList :: forall r a. (Region r) => DList r a %1 -> Ur [a]
+toUList (DList i) = fromIncomplete_ $ i <&> \dl -> dl & fill @'[]
+
 fromList :: forall r a. (Region r) => Token %1 -> [a] -> DList r a
 fromList token l = DList (alloc @r token <&> \d -> go d l) where
   go dl [] = dl
