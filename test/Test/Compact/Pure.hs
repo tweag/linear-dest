@@ -16,6 +16,7 @@
 module Test.Compact.Pure (compactPureTests) where
 
 import Compact.Pure
+import Compact.Pure.Inspect
 import Control.Functor.Linear ((<&>))
 import Control.Monad (return)
 import GHC.Generics (Generic)
@@ -23,6 +24,7 @@ import Prelude.Linear hiding (Eq)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Prelude (Eq)
+import Data.Proxy (Proxy)
 
 compactPureTests :: TestTree
 compactPureTests =
@@ -30,7 +32,7 @@ compactPureTests =
     "With dests to fill compact region"
     [ testCaseInfo "Dests for compact region: compose when RHS is freshly allocated" compOnFreshAlloc,
       testCaseInfo "Dests for compact region: compose when RHS has already been filled" compOnUsedAlloc,
-      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromRegExtract" fillCustomDataAndExtract
+      testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromIncomplete" fillCustomDataAndExtract
     ]
 
 -- Launch with
@@ -43,17 +45,17 @@ data Foo a b = MkFoo {unBar :: a, unBaz :: (b, b), unBoo :: a} deriving (Eq, Gen
 compOnFreshAlloc :: IO String
 compOnFreshAlloc = do
   let actual :: Ur (Int, Int)
-      !actual = withRegion $ \(r :: RegionToken r) -> case dup2 r of
-        (r', r'') ->
-          fromReg
-            $ (alloc r')
+      !actual = withRegion $ \(_ :: Proxy r) t -> case dup2 t of
+        (t', t'') ->
+          fromIncomplete_
+            $ (alloc @r t')
             <&> ( \dp ->
                     case (dp & fill @'(,)) of
                       (dl, dr) ->
                         dl
                           & fillLeaf 1
                           `lseq` dr
-                          & fillComp (alloc r'')
+                          & fillComp (alloc @r t'')
                           & fillLeaf 2
                 )
       expected :: Ur (Int, Int)
@@ -65,17 +67,17 @@ compOnFreshAlloc = do
 compOnUsedAlloc :: IO String
 compOnUsedAlloc = do
   let actual :: Ur (Int, (Int, Int))
-      !actual = withRegion $ \r -> case dup2 r of
-        (r', r'') ->
-          fromReg
-            $ (alloc r')
+      !actual = withRegion $ \(_ :: Proxy r) t -> case dup2 t of
+        (t', t'') ->
+          fromIncomplete_
+            $ (alloc @r t')
             <&> ( \dp ->
                     case dp & fill @'(,) of
                       (dl, dr) ->
                         dl
                           & fillLeaf 1
                           `lseq` dr
-                          & fillComp ((alloc r'') <&> (\dp' -> case dp' & fill @'(,) of (dr1, dr2) -> dr1 & fillLeaf 2 `lseq` dr2))
+                          & fillComp ((alloc @r t'') <&> (\dp' -> case dp' & fill @'(,) of (dr1, dr2) -> dr1 & fillLeaf 2 `lseq` dr2))
                           & fillLeaf 3
                 )
       expected :: Ur (Int, (Int, Int))
@@ -87,9 +89,9 @@ compOnUsedAlloc = do
 fillCustomDataAndExtract :: IO String
 fillCustomDataAndExtract = do
   let actual :: Ur (Foo Int Char, Int)
-      !actual = withRegion $ \r ->
-        fromRegExtract
-          $ (alloc r)
+      !actual = withRegion $ \(_ :: Proxy r) t ->
+        fromIncomplete
+          $ (alloc @r t)
           <&> ( \d ->
                   case d & fill @'MkFoo of
                     (dBar, dBaz, dBoo) ->

@@ -1,29 +1,18 @@
-{-# LANGUAGE LinearTypes #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-
 module Compact.Pure
-  ( ShowHeap (_showHeap),
-    _showHeapPrim,
-    showHeap,
-    RegionContext,
-    RegionToken,
+  ( Token,
+    Region,
     withRegion,
-    withRegionM,
-    getToken,
-    infuseToken,
-    Dest,
-    Fill (fill),
-    DestsOf,
-    fillComp,
-    fillLeaf,
-    intoReg,
-    fromReg,
-    fromRegM,
-    fromRegExtract,
     Incomplete,
+    piggyback,
     alloc,
-    indInfoPtr,
+    intoIncomplete,
+    fromIncomplete_,
+    fromIncomplete,
+    Dest,
+    DestsOf,
+    fill,
+    fillComp,
+    fillLeaf
   )
 where
 

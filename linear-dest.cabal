@@ -21,6 +21,8 @@ source-repository head
 library
     exposed-modules:
         Compact.Pure
+        Compact.Pure.Inspect
+        Compact.Pure.Inspect.Internal
         Compact.Pure.SExpr
         Compact.Pure.Internal
         Control.Functor.Linear

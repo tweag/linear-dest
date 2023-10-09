@@ -1,39 +1,25 @@
 name: Continuous integration
 on: [push, pull_request]
 env:
-  # Bump this number to invalidate the Github-actions cache
-  cache-invalidation-key: 0
-  nixpkgs-url: https://github.com/NixOS/nixpkgs/archive/1697b7d480449b01111e352021f46e5879e47643.tar.gz
-  ghc-exe: ./ghc@580d39a221/bin/ghc
+  NIX_PATH: nixpkgs=https://github.com/NixOS/nixpkgs/archive/1697b7d480449b01111e352021f46e5879e47643.tar.gz
+  ghc-exe: $(pwd)/ghc@580d39a221/bin/ghc
 
 jobs:
   cabal-test-bench:
     name: Run tests & benchmarks with cabal
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     steps:
     - uses: actions/checkout@v3
       with:
         lfs: true
     - name: Checkout LFS objects
       run: git lfs checkout
-    - uses: cachix/install-nix-action@v22
-      with:
-        nix_path: nixpkgs=${{ env.nixpkgs-url }}
-    - name: Cache Cabal dependencies
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cabal/packages
-          ~/.cabal/store
-          dist-newstyle
-        key: cabal-deps-${{ runner.os }}-${{ hashFiles('nix/sources.json') }}-v${{ env.cache-invalidation-key }}-${{ hashFiles('linear-dest.cabal') }}-${{ github.sha }}
-        restore-keys: cabal-deps-${{ runner.os }}-${{ hashFiles('nix/sources.json') }}-v${{ env.cache-invalidation-key }}-${{ hashFiles('linear-dest.cabal') }}-
     - name: Build Nix dependencies
       run: nix-shell --pure --run "echo '=== Nix dependencies installed ==='"
     - name: Install custom GHC
       run: nix-shell --pure --run "tar xJf ghc-bindist@580d39a221.tar.xz && mkdir -p ghc@580d39a221 && cd ghc-9.9.20230911-x86_64-unknown-linux && ./configure --prefix="'$'"(pwd)/../ghc@580d39a221 && make install && cd .."
     - name: Init Cabal's config file
-      run: nix-shell --pure --run "cabal --config-file=/home/runner/.cabal/config user-config -f init"
+      run: nix-shell --pure --run "cabal --config-file=$HOME/.cabal/config user-config -f init"
     - name: Update Cabal's database
       run: nix-shell --pure --run "cabal update"
     - name: Build Cabal's dependencies
@@ -41,31 +27,31 @@ jobs:
     - name: test:test target - build tests
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test"
     - name: test:test target - run tests
-      run: nix-shell --pure --run "cabal test -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming >> test_results.txt 2&>1"
+      run: nix-shell --pure --run "cabal test -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming 2>&1 | tee test_results.txt"
     - name: exe:dump target - build -s benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump"
     - name: exe:dump target - run -s benchmark without dest (force)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce >> benchmark_results.txt 2>&1"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark without dest (copy into region)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestDestCopyReg -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyReg >> benchmark_results.txt 2>&1"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
     - name: exe:dump target - run -s benchmark with dest
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest >> benchmark_results.txt 2>&1"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
     - name: bench:memory target - build -T benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory"
     - name: bench:memory target - run -T benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParse -T ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS' >> benchmark_results.txt 2>&1"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParse -T ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
     - name: bench:jflart target - build benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart"
     - name: bench:jflart target - run benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark & Tests Jflart ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' >> benchmark_results.txt 2>&1"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark & Tests Jflart ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
     - name: bench:memory target - build -p benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory"
     - name: bench:memory target - run profiling without dest (force)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
     - name: bench:memory target - run profiling without dest (copy into region)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyReg' && mv memory.prof memory_without_dest_copy_reg.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyRegion' && mv memory.prof memory_without_dest_copy_region.prof"
     - name: bench:memory target - run profiling with dest
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
+      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
     - name: Upload results
       uses: actions/upload-artifact@v3
       with:
@@ -74,7 +60,7 @@ jobs:
           test_results.txt
           benchmark_results.txt
           memory_without_dest_force.prof
-          memory_without_dest_copy_reg.prof
+          memory_without_dest_copy_region.prof
           memory_with_dest.prof
           ./dist-newstyle/build/x86_64-linux/ghc-9.9.20230911/linear-dest-0.2.0/build/**/*.dump-simpl
         retention-days: 30

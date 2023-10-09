@@ -19,15 +19,15 @@ benchmark sampleData =
     "compact region allocs"
     [ bgroup
         "whnfAppIO (evaluate)"
-        [ bench "without dest (with force)" . (flip whnfAppIO) sampleData $ \sampleData -> do
-            let res = parseWithoutDest sampleData
-            evaluate . force $ res,
+        [ bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
+            evaluate . parseWithDest $ sampleData,
           bench "without dest (with copy into region)" . (flip whnfAppIO) sampleData $ \sampleData -> do
             let res = parseWithoutDest sampleData
             resInRegion <- compact res
             evaluate . getCompact $ resInRegion,
-          bench "with dest" . (flip whnfAppIO) sampleData $ \sampleData -> do
-            evaluate . parseWithDest $ sampleData
+          bench "without dest (with force)" . (flip whnfAppIO) sampleData $ \sampleData -> do
+            let res = parseWithoutDest sampleData
+            evaluate . force $ res
         ]
     ]
 
