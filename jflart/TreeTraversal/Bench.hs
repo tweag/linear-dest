@@ -82,8 +82,15 @@ safety sampleData =
 benchmark :: BinTree () -> Benchmark
 benchmark sampleData =
   bgroup "breadth-first tree traversal implementations" $
-    impls <&> \(impl, implName, isLazy) -> bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> do
-      evaluate $ (if isLazy then force else id) $ impl sampleData
+    concat $ impls <&> \(impl, implName, isLazy) -> if isLazy
+      then
+        [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData
+        , bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
+                resInRegion <- compact $ impl sampleData
+                evaluate $ getCompact $ resInRegion
+        ]
+      else
+        [ bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData ]
 
 getBenchgroup :: IO Benchmark
 getBenchgroup = do
