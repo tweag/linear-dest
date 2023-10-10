@@ -18,30 +18,6 @@ import Compact.Pure
 import Data.Kind (Type)
 import Prelude.Linear
 
-nonDestImpls :: [(forall a b. (a %1 -> b) -> [a] %1 -> [b], String)]
-nonDestImpls =
-  [ (mapL, "mapL"),
-    (mapS, "mapS"),
-    (mapSH, "mapSH"),
-    (mapST, "mapST"),
-    (mapS, "mapS"),
-    (mapTRL, "mapTRL"),
-    (mapTRS, "mapTRS"),
-    (mapTRSH, "mapTRSH"),
-    (mapTRST, "mapTRST")
-  ]
-
-destImpls :: [(forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> (), String)]
-destImpls =
-  [ (mapDestTRL, "mapDestTRL"),
-    (mapDestTRS, "mapDestTRS"),
-    (mapDestFL, "mapDestFL"),
-    (mapDestFLS, "mapDestFLS"),
-    (mapDestFSL, "mapDestFSL"),
-    (mapDestFS, "mapDestFS")
-  ]
-  where
-
 mapL :: forall a b. (a %1 -> b) -> [a] %1 -> [b]
 mapL _ [] = []
 mapL f (x : xs) = (f x) : (mapL f xs)

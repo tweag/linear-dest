@@ -23,6 +23,7 @@ import TreeTraversal.Impl
 import Prelude.Linear
 import Prelude ((=<<), return, (<$>))
 import Control.Monad.State.Lazy (state, runState)
+import GHC.Compact (compact, getCompact)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Bench
 import Test.Tasty.HUnit
@@ -45,8 +46,8 @@ phasesRelabel base = runState (mapPhasesBFS (\_ -> state (\s -> (s, s + 1))) bas
 
 impls :: [(BinTree () -> (BinTree Int, Int), String, Bool)]
 impls =
-  [ (dpsRelabel, "relabel using destinations", False)
-  , (phasesRelabel, "relabel using phases applicative", True)
+  [ (dpsRelabel, "dpsRelabel", False)
+  , (phasesRelabel, "phasesRelabel", True)
   ]
 
 safety :: BinTree () -> TestTree
@@ -54,15 +55,15 @@ safety sampleData =
   testGroup "safety" $
     ((tail impls) <&> \(impl, implName, _) ->
       testCaseInfo ("relabel using destinations and " ++ implName ++ " give the same result") $ do
-        let ref = dpsRelabel sampleData
-            experimental = impl sampleData
-        assertEqual "same result" ref experimental
-        return $ show "<too large to display>")
+        let expected = dpsRelabel sampleData
+            actual = impl sampleData
+        assertEqual "same result" expected actual
+        return $ "<too large to display>")
       ++ (
         impls <&> \(impl, implName, _) ->
           testCaseInfo (implName ++ " give the good result on a small example") $ do
-            let ref :: (BinTree Int, Int)
-                ref =
+            let expected :: (BinTree Int, Int)
+                expected =
                   ( Node
                       0
                       (Node 1 (Leaf 3) (Leaf 4))
@@ -75,27 +76,27 @@ safety sampleData =
                     ()
                     (Node () (Leaf ()) (Leaf ()))
                     (Node () (Leaf ()) Nil)
-                experimental = impl base
-            assertEqual "same result" ref experimental
-            return $ show $ experimental)
+                actual = impl base
+            assertEqual "same result" expected actual
+            return $ show $ actual)
 
 benchmark :: BinTree () -> Benchmark
 benchmark sampleData =
-  bgroup "breadth-first tree traversal implementations" $
+  bgroup "benchmark" $
     concat $ impls <&> \(impl, implName, isLazy) -> if isLazy
       then
-        [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData
-        , bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
+        [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData,
+          bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
                 resInRegion <- compact $ impl sampleData
                 evaluate $ getCompact $ resInRegion
         ]
       else
-        [ bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData ]
+        [ bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ impl sampleData ]
 
 getBenchgroup :: IO Benchmark
 getBenchgroup = do
   !treeData <- loadTreeData
-  return $ bgroup "breadth-first tree traversal"
+  return $ bgroup "breadth-first-tree-traversal"
     [ benchmark treeData,
       safety treeData
     ]

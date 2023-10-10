@@ -20,12 +20,14 @@ import Control.Exception (evaluate)
 import Data.Functor ((<&>))
 import DList.Impl
 import Prelude.Linear (unur, dup2, consume, lseq)
+import GHC.Compact (compact, getCompact)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.Bench
 import Test.Tasty.HUnit
 import Data.Proxy (Proxy)
 import Data.List.Linear ((++))
 import Prelude hiding (foldr, concat, (++))
+import qualified Prelude
 
 impls :: [(forall a. [[a]] -> [a], String, Bool)]
 impls =
@@ -69,30 +71,30 @@ differenceListDestLeft lists = unur (withRegion (\(_ :: Proxy r) t ->
 safety :: forall a. (Eq a, Show a) => [[a]] -> TestTree
 safety sampleData =
   testGroup "safety" $
-     (tail impls) <&> \(impl, implName, _) ->
+    (tail impls) <&> \(impl, implName, _) ->
       testCaseInfo ("concatLeft and " ++ implName ++ " give the same result") $ do
-        let ref = concatLeft sampleData
-            experimental = impl sampleData
-        assertEqual "same result" ref experimental
-        return $ show $ take (min 102 (length experimental)) $ experimental
+        let expected = concatLeft sampleData
+            actual = impl sampleData
+        assertEqual "same result" expected actual
+        return $ show $ take (min 102 (length actual)) $ actual
 
 benchmark :: forall a. NFData a => [[a]] -> Benchmark
 benchmark sampleData =
-  bgroup "difference list implementations" $
-    concat $ impls <&> \(impl, implName, isLazy) -> if isLazy
+  bgroup "benchmark" $
+    Prelude.concat $ impls <&> \(impl, implName, isLazy) -> if isLazy
       then
-        [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData
-        , bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
+        [ bench (implName ++ " (with force)") $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData,
+          bench (implName ++ " (with copy into region)") $ (flip whnfAppIO) sampleData $ \sampleData -> do
                 resInRegion <- compact $ impl sampleData
                 evaluate $ getCompact $ resInRegion
         ]
       else
-        [ bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ force $ impl sampleData ]
+        [ bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> evaluate $ impl sampleData ]
 
 getBenchgroup :: IO Benchmark
 getBenchgroup = do
   !listsData <- loadListsData
-  return $ bgroup "difference list"
+  return $ bgroup "difference-list"
     [ benchmark listsData,
       safety listsData
     ]

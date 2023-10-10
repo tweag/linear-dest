@@ -63,9 +63,9 @@ destImpl limit = unur (withRegion (\(_ :: Proxy r) t -> let r = go 0 (singleton 
 
 impls :: [(Word64 -> Word64, String)]
 impls =
-  [ (naiveImpl, "naive functional queue")
-  , (funcImpl, "queue backed by difference lists using functions")
-  , (destImpl, "queue backed by difference lists using destinations")
+  [ (naiveImpl, "naiveImpl")
+  , (funcImpl, "funcImpl")
+  , (destImpl, "destImpl")
   ]
 
 safety :: Word64 -> TestTree
@@ -73,14 +73,14 @@ safety sampleData =
   testGroup "safety" $
      (tail impls) <&> \(impl, implName) ->
       testCaseInfo ("naive functional queue and " ++ implName ++ " give the same result") $ do
-        let ref = naiveImpl sampleData
-            experimental = impl sampleData
-        assertEqual "same result" ref experimental
-        return $ show experimental
+        let expected = naiveImpl sampleData
+            actual = impl sampleData
+        assertEqual "same result" expected actual
+        return $ show actual
 
 benchmark :: Word64 -> Benchmark
 benchmark sampleData =
-  bgroup "queue implementations" $
+  bgroup "benchmark" $
     impls <&> \(impl, implName) -> bench implName $ (flip whnfAppIO) sampleData $ \sampleData -> do
       evaluate $ force $ impl sampleData
 

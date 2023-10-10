@@ -16,7 +16,8 @@
 module Compact.Pure.SExpr where
 
 import Compact.Pure.Internal
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData, force)
+import Control.Exception (evaluate)
 import Control.Functor.Linear ((<&>))
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BSC
@@ -27,7 +28,7 @@ import Data.Proxy (Proxy)
 import qualified Prelude as NonLinear
 
 loadSampleData :: IO ByteString
-loadSampleData = BSC.readFile "src/Compact/Pure/test_data.sexpr"
+loadSampleData = evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/test_data.sexpr"
 
 data SExpr
   = SList Int [SExpr]

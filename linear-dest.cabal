@@ -108,9 +108,9 @@ library
         vector >=0.12.2,
         primitive,
 
-executable dump
+executable gc-stats
     main-is:          Main.hs
-    hs-source-dirs:   dump
+    hs-source-dirs:   gc-stats
     default-language: Haskell2010
     build-depends:
         base,
@@ -135,6 +135,7 @@ benchmark jflart
         Queue.Bench
         TreeTraversal.Bench
         TreeTraversal.Impl
+        Parser.Bench
     build-depends:
         base,
         bytestring,
@@ -166,20 +167,3 @@ test-suite test
         tasty,
         tasty-hunit,
         vector
-
-benchmark memory
-    type:             exitcode-stdio-1.0
-    main-is:          Main.hs
-    hs-source-dirs:   memory
-    other-modules:
-        Bench.Compact.Pure
-    default-language: Haskell2010
-    build-depends:
-        base,
-        bytestring,
-        deepseq,
-        ghc-compact,
-        linear-dest,
-        tasty,
-        tasty-bench >= 0.3.4,
-        tasty-hunit

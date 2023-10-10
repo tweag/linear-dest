@@ -24,34 +24,37 @@ jobs:
       run: nix-shell --pure --run "cabal update"
     - name: Build Cabal's dependencies
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --disable-tests --disable-benchmarks --dependencies-only"
+
     - name: test:test target - build tests
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test"
     - name: test:test target - run tests
       run: nix-shell --pure --run "cabal test -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming 2>&1 | tee test_results.txt"
-    - name: exe:dump target - build -s benchmark
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump"
-    - name: exe:dump target - run -s benchmark without dest (force)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
-    - name: exe:dump target - run -s benchmark without dest (copy into region)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
-    - name: exe:dump target - run -s benchmark with dest
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:dump -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
-    - name: bench:memory target - build -T benchmark
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory"
-    - name: bench:memory target - run -T benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParse -T ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:memory --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+
     - name: bench:jflart target - build benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart"
-    - name: bench:jflart target - run benchmark
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark & Tests Jflart ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
-    - name: bench:memory target - build -p benchmark
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory"
-    - name: bench:memory target - run profiling without dest (force)
-      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestForce' && mv memory.prof memory_without_dest_force.prof"
-    - name: bench:memory target - run profiling without dest (copy into region)
-      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithoutDestCopyRegion' && mv memory.prof memory_without_dest_copy_region.prof"
-    - name: bench:memory target - run profiling with dest
-      run: nix-shell --pure --run "cabal bench -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:memory --benchmark-options='+RTS -p -N1 -RTS runParseWithDest' && mv memory.prof memory_with_dest.prof"
+    - name: bench:jflart target - run benchmarks
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark Jflart ===\n\n' > benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+    - name: bench:jflart target - run benchmarks in isolation
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark Jflart (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS && tee -a benchmark_results.txt < <(tail -n1 temp.csv); done && rm temp.csv"
+
+    - name: exe:gc-stats target - build -p benchmark
+      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats"
+    - name: exe:gc-stats target - run -s benchmark without dest (force)
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
+    - name: exe:gc-stats target - run -s benchmark without dest (copy into region)
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
+    - name: exe:gc-stats target - run -s benchmark with dest
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
+
+    - name: exe:gc-stats target - build -p profiling
+      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats"
+    - name: exe:gc-stats target - run profiling without dest (force)
+      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithoutDestForce && mv gc-stats.prof memory_without_dest_force.prof"
+    - name: exe:gc-stats target - run profiling without dest (copy into region)
+      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithoutDestCopyRegion && mv gc-stats.prof memory_without_dest_copy_region.prof"
+    - name: exe:gc-stats target - run profiling with dest
+      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithDest && mv gc-stats.prof memory_with_dest.prof"
+
     - name: Upload results
       uses: actions/upload-artifact@v3
       with:

@@ -16,7 +16,6 @@
 module Test.Compact.Pure (compactPureTests) where
 
 import Compact.Pure
-import Compact.Pure.Inspect
 import Control.Functor.Linear ((<&>))
 import Control.Monad (return)
 import GHC.Generics (Generic)
@@ -26,6 +25,9 @@ import Test.Tasty.HUnit
 import Prelude (Eq)
 import Data.Proxy (Proxy)
 
+-- Launch with
+-- cabal test -w $(pwd)/ghc@580d39a221/bin/ghc --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming
+
 compactPureTests :: TestTree
 compactPureTests =
   testGroup
@@ -34,11 +36,6 @@ compactPureTests =
       testCaseInfo "Dests for compact region: compose when RHS has already been filled" compOnUsedAlloc,
       testCaseInfo "Dests for compact region: fill custom data (via generic) and return companion value with fromIncomplete" fillCustomDataAndExtract
     ]
-
--- Launch with
-
--- $ stack test
--- cabal test -w /home/thomas/tweag/ghc/_build/stage1/bin/ghc --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming
 
 data Foo a b = MkFoo {unBar :: a, unBaz :: (b, b), unBoo :: a} deriving (Eq, Generic, Show)
 
@@ -60,9 +57,8 @@ compOnFreshAlloc = do
                 )
       expected :: Ur (Int, Int)
       !expected = Ur (1, 2)
-      fancyDisp = showHeap actual
-  assertEqual "" expected actual
-  return fancyDisp
+  assertEqual "same result" expected actual
+  return ""
 
 compOnUsedAlloc :: IO String
 compOnUsedAlloc = do
@@ -82,9 +78,8 @@ compOnUsedAlloc = do
                 )
       expected :: Ur (Int, (Int, Int))
       !expected = Ur (1, (2, 3))
-      fancyDisp = showHeap actual
-  assertEqual "" expected actual
-  return fancyDisp
+  assertEqual "same result" expected actual
+  return ""
 
 fillCustomDataAndExtract :: IO String
 fillCustomDataAndExtract = do
@@ -106,6 +101,5 @@ fillCustomDataAndExtract = do
               )
       expected :: Ur (Foo Int Char, Int)
       !expected = Ur (MkFoo 1 ('a', 'b') 2, 14)
-      fancyDisp = showHeap actual
-  assertEqual "" expected actual
-  return fancyDisp
+  assertEqual "same result" expected actual
+  return ""
