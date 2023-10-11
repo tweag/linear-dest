@@ -30,30 +30,20 @@ jobs:
     - name: test:test target - run tests
       run: nix-shell --pure --run "cabal test -w ${{ env.ghc-exe }} --allow-newer linear-dest:test:test --test-options='+RTS -N1 -RTS' --test-show-details=streaming 2>&1 | tee test_results.txt"
 
-    - name: bench:jflart target - build benchmark
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart"
-    - name: bench:jflart target - run benchmarks
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark Jflart ===\n\n' > benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:jflart --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
-    - name: bench:jflart target - run benchmarks in isolation
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark Jflart (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS && tee -a benchmark_results.txt < <(tail -n1 temp.csv); done && rm temp.csv"
+    - name: bench:bench target - build benchmark
+      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:bench"
+    - name: bench:bench target - run benchmarks with -T
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T ===\n\n' > benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:bench --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+    - name: bench:bench target - run benchmarks with -T in isolation
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS 2>&1 && tee -a benchmark_results.txt < <(tail -n1 temp.csv); done && rm temp.csv"
+  
+    - name: bench:bench target - single runs with -s
+      run: nix-shell --pure --run "echo $'\n\n=== Single runs with -s (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do echo $'\n\n=== Benchmark '\""'$'"name\"$' ===\n\n' | tee -a benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- "'$'"name +RTS -s -N1 -RTS 2>&1 | tee -a benchmark_results.txt ; done"
 
-    - name: exe:gc-stats target - build -s benchmark
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats"
-    - name: exe:gc-stats target - run -s benchmark without dest (force)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
-    - name: exe:gc-stats target - run -s benchmark without dest (copy into region)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
-    - name: exe:gc-stats target - run -s benchmark with dest
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithDest -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithDest 2>&1 | tee -a benchmark_results.txt"
-
-    - name: exe:gc-stats target - build -p profiling
-      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats"
-    - name: exe:gc-stats target - run profiling without dest (force)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithoutDestForce && mv gc-stats.prof memory_without_dest_force.prof"
-    - name: exe:gc-stats target - run profiling without dest (copy into region)
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithoutDestCopyRegion && mv gc-stats.prof memory_without_dest_copy_region.prof"
-    - name: exe:gc-stats target - run profiling with dest
-      run: nix-shell --pure --run "cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:exe:gc-stats -- +RTS -p -N1 -RTS runParseWithDest && mv gc-stats.prof memory_with_dest.prof"
+    - name: bench:bench target - build -p profiling
+      run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:bench"
+    - name: bench:bench target - run -p profiling
+      run: nix-shell --pure --run "mkdir -p prof && cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late -v0 linear-dest:bench:bench -- "'$'"name +RTS -p -N1 -RTS 2>&1 && mv bench.prof \"prof/"'$'"name.prof\" ; done"
 
     - name: Upload results
       uses: actions/upload-artifact@v3
@@ -62,8 +52,6 @@ jobs:
         path: |
           test_results.txt
           benchmark_results.txt
-          memory_without_dest_force.prof
-          memory_without_dest_copy_region.prof
-          memory_with_dest.prof
+          prof
           ./dist-newstyle/build/x86_64-linux/ghc-9.9.20230911/linear-dest-0.2.0/build/**/*.dump-simpl
         retention-days: 30

@@ -28,3 +28,4 @@ cabal.project.local
 
 ghc-*
 ghc@*
+prof

@@ -27,8 +27,8 @@ import Prelude.Linear
 import Data.Proxy (Proxy)
 import qualified Prelude as NonLinear
 
-loadSampleData :: IO ByteString
-loadSampleData = evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/test_data.sexpr"
+loadBenchData :: IO ByteString
+loadBenchData = evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/test_data.sexpr"
 
 data SExpr
   = SList Int [SExpr]

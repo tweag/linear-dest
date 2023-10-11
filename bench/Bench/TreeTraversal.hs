@@ -17,17 +17,23 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
-module TreeTraversal.Impl where
+module Bench.TreeTraversal where
 
 import Compact.Pure
 import Control.Functor.Linear ((<&>))
 import GHC.Generics
 import Prelude.Linear
-import Queue.Impl
+import Bench.Queue hiding (loadBenchData, impls)
 import Data.Proxy (Proxy)
 import Control.DeepSeq (NFData)
 import qualified Prelude as NonLin
-import Prelude (Functor, fmap, Applicative, pure, (<*>))
+import qualified Data.Functor as NonLin
+import Prelude (Functor, fmap, Applicative, pure, (<*>), (=<<), return, (<$>))
+import Control.Exception (evaluate)
+import Control.DeepSeq (force)
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.HUnit (assertEqual, testCaseInfo)
+import Control.Monad.State.Lazy (runState, state)
 
 data BinTree a where
   Nil :: BinTree a
@@ -95,3 +101,50 @@ mapAccumBFS f s0 tree =
             let q'' = q' `enqueueN` (Ur tl, dtl) `enqueueN` (Ur tr, dtr)
                 (s', r) = f s x
              in dr & fillLeaf r `lseq` go s' q''
+
+--------------------------------------------------------------------------------
+
+loadBenchData :: IO (BinTree ())
+loadBenchData = evaluate =<< force <$>
+  let maxDepth :: Int
+      maxDepth = 16
+      go currentDepth =
+        if currentDepth >= maxDepth
+          then Nil
+          else Node () (go (currentDepth + 1)) (go (currentDepth + 1))
+   in return (go 0)
+
+dpsRelabel :: BinTree () -> (BinTree Int, Int)
+dpsRelabel base = mapAccumBFS (\s _ -> (s + 1, s)) 0 base
+
+phasesRelabel :: BinTree () -> (BinTree Int, Int)
+phasesRelabel base = runState (mapPhasesBFS (\_ -> state (\s -> (s, s + 1))) base) 0
+
+impls :: [(BinTree () -> (BinTree Int, Int), String, Bool)]
+impls =
+  [ (dpsRelabel, "dpsRelabel", False)
+  , (phasesRelabel, "phasesRelabel", True)
+  ]
+
+extraSafety :: IO TestTree
+extraSafety = do
+  return $ testGroup "safety" $
+    impls NonLin.<&> \(impl, implName, _) ->
+          testCaseInfo (implName ++ " give the good result on a small example") $ do
+            let expected :: (BinTree Int, Int)
+                expected =
+                  ( Node
+                      0
+                      (Node 1 (Leaf 3) (Leaf 4))
+                      (Node 2 (Leaf 5) Nil),
+                    6
+                  )
+                base :: BinTree ()
+                base =
+                  Node
+                    ()
+                    (Node () (Leaf ()) (Leaf ()))
+                    (Node () (Leaf ()) Nil)
+                actual = impl base
+            assertEqual "same result" expected actual
+            return $ ""

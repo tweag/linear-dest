@@ -12,12 +12,18 @@
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
-module Queue.Impl where
+module Bench.Queue where
 
 import Compact.Pure
-import DList.Impl (DList (DList), DListN)
-import qualified DList.Impl as DList
-import Prelude.Linear
+import qualified Bench.DList as DList
+import Bench.DList
+import Prelude.Linear hiding ((+), (*), (<))
+import Control.Exception (evaluate)
+import Control.DeepSeq (force)
+import Prelude ((=<<), return, (<$>), (+), (*), (<))
+import Data.Word
+import Data.Bits
+import Data.Proxy (Proxy)
 
 data NaiveQueue a = NaiveQueue [a] [a]
 
@@ -81,3 +87,46 @@ dequeue (Queue l (DList i)) = case l of
     [] -> consume token `lseq` Nothing
     (x : xs) -> Just (x, Queue xs (DList.new @r token))
   (x : xs) -> Just (x, Queue xs (DList i))
+
+-------------------------------------------------------------------------------
+
+loadBenchData :: IO Word64
+loadBenchData = evaluate =<< force <$> return (2 `shiftL` 16)
+
+naiveImpl :: Word64 -> Word64
+naiveImpl limit = go 0 (singletonN 1)
+  where
+    go sum q = case dequeueN q of
+      Nothing -> sum
+      Just (x, q') -> go (sum + x) q'' where
+        q'' = if x < limit
+                then q' `enqueueN` (2 * x) `enqueueN` (2 * x + 1)
+                else q'
+
+funcImpl :: Word64 -> Word64
+funcImpl limit = go 0 (singletonF 1)
+  where
+    go sum q = case dequeueF q of
+      Nothing -> sum
+      Just (x, q') -> go (sum + x) q'' where
+        q'' = if x < limit
+                then q' `enqueueF` (2 * x) `enqueueF` (2 * x + 1)
+                else q'
+
+destImpl :: Word64 -> Word64
+destImpl limit = unur (withRegion (\(_ :: Proxy r) t -> let r = go 0 (singleton @r t (Ur 1)) in move r))
+  where
+    go :: Region r => Word64 -> Queue r (Ur Word64) %1 -> Word64
+    go sum q = case dequeue q of
+      Nothing -> sum
+      Just (Ur x, q') -> go (sum + x) q'' where
+        q'' = if x < limit
+                then q' `enqueue` Ur (2 * x) `enqueue` Ur (2 * x + 1)
+                else q'
+
+impls :: [(Word64 -> Word64, String, Bool)]
+impls =
+  [ (naiveImpl, "naiveImpl", False)
+  , (funcImpl, "funcImpl", False)
+  , (destImpl, "destImpl", False)
+  ]

@@ -108,34 +108,18 @@ library
         vector >=0.12.2,
         primitive,
 
-executable gc-stats
-    main-is:          Main.hs
-    hs-source-dirs:   gc-stats
-    default-language: Haskell2010
-    build-depends:
-        base,
-        bytestring,
-        deepseq,
-        ghc-compact,
-        linear-dest,
-        containers,
-        vector
-
-benchmark jflart
+benchmark bench
     type:             exitcode-stdio-1.0
     main-is:          Main.hs
-    hs-source-dirs:   jflart
+    hs-source-dirs:   bench
     default-language: Haskell2010
     other-modules:
-        Map.Bench
-        Map.Impl
-        DList.Impl
-        DList.Bench
-        Queue.Impl
-        Queue.Bench
-        TreeTraversal.Bench
-        TreeTraversal.Impl
-        Parser.Bench
+        Bench.Utils
+        Bench.DList
+        Bench.Map
+        Bench.Parser
+        Bench.Queue
+        Bench.TreeTraversal
     build-depends:
         base,
         bytestring,
