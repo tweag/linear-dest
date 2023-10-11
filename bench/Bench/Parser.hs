@@ -2,7 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wno-name-shadowing -Wno-x-partial #-}
 
-module Bench.Parser (impls, extraSafety, loadBenchData) where
+module Bench.Parser (impls, extraSafety, dataSets) where
 
 import Compact.Pure.SExpr
 import Data.ByteString.Char8 (ByteString)
@@ -18,10 +18,11 @@ impls =
   ]
 
 extraSafety :: IO TestTree
-extraSafety = do
-  sampleData <- loadBenchData
-  return $ testGroup "extraSafety" $
-    impls <&> \(impl, implName, _) ->
-        testCaseInfo (implName ++ " is Right") $ do
-          assertEqual (implName ++ " is Right") True (isRight (impl sampleData))
-          return $ ""
+extraSafety =
+  testGroup "extraSafety" <$> (sequence $
+    dataSets <&> \(loadSampleData, sizeName) -> do
+      sampleData <- loadSampleData
+      return $ testGroup sizeName $ impls <&> \(impl, implName, _) ->
+          testCaseInfo (implName ++ " is Right") $ do
+            assertEqual (implName ++ " is Right") True (isRight (impl sampleData))
+            return $ "")

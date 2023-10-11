@@ -9,6 +9,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# OPTIONS_GHC -Wno-x-partial #-}
 
 module Main (main) where
 
@@ -30,23 +31,23 @@ launchImpl :: String -> IO ()
 launchImpl s =
   let (_all, dotModuleName) = span (/= '.') s
       (moduleName, dotBenchmark) = span (/= '.') (tail dotModuleName)
-      (_benchmark, dotImplSpec) = span (/= '.') (tail dotBenchmark)
-      implSpec = tail dotImplSpec
+      (_benchmark, dotImplSizeSpec) = span (/= '.') (tail dotBenchmark)
+      implSizeSpec = tail dotImplSizeSpec
    in case (_all ++ "." ++ moduleName ++ "." ++ _benchmark) of
-        "All.Map.benchmark" -> Utils.launchImpl implSpec Map.impls Map.loadBenchData
-        "All.TreeTraversal.benchmark" -> Utils.launchImpl implSpec TreeTraversal.impls TreeTraversal.loadBenchData
-        "All.DList.benchmark" -> Utils.launchImpl implSpec DList.impls DList.loadBenchData
-        "All.Queue.benchmark" -> Utils.launchImpl implSpec Queue.impls Queue.loadBenchData
-        "All.Parser.benchmark" -> Utils.launchImpl implSpec Parser.impls Parser.loadBenchData
+        "All.Map.benchmark" -> Utils.launchImpl implSizeSpec Map.impls Map.dataSets
+        "All.TreeTraversal.benchmark" -> Utils.launchImpl implSizeSpec TreeTraversal.impls TreeTraversal.dataSets
+        "All.DList.benchmark" -> Utils.launchImpl implSizeSpec DList.impls DList.dataSets
+        "All.Queue.benchmark" -> Utils.launchImpl implSizeSpec Queue.impls Queue.dataSets
+        "All.Parser.benchmark" -> Utils.launchImpl implSizeSpec Parser.impls Parser.dataSets
         _ -> launchAllBenchs
 
 launchAllBenchs :: IO ()
 launchAllBenchs = do
-  mapBenchgroup <- bgroup "Map" <$> sequence [ Utils.benchImpls Map.impls Map.loadBenchData, Utils.safetySameAsFirstImpl Map.impls Map.loadBenchData ]
-  treetraversalBenchgroup <- bgroup "TreeTraversal" <$> sequence [ Utils.benchImpls TreeTraversal.impls TreeTraversal.loadBenchData, Utils.safetySameAsFirstImpl TreeTraversal.impls TreeTraversal.loadBenchData, TreeTraversal.extraSafety ]
-  dlistBenchgroup <- bgroup "DList" <$> sequence [ Utils.benchImpls DList.impls DList.loadBenchData, Utils.safetySameAsFirstImpl DList.impls DList.loadBenchData ]
-  queueBenchgroup <- bgroup "Queue" <$> sequence [ Utils.benchImpls Queue.impls Queue.loadBenchData, Utils.safetySameAsFirstImpl Queue.impls Queue.loadBenchData ]
-  parserBenchgroup <- bgroup "Parser" <$> sequence [ Utils.benchImpls Parser.impls Parser.loadBenchData, Utils.safetySameAsFirstImpl Parser.impls Parser.loadBenchData, Parser.extraSafety ]
+  mapBenchgroup <- bgroup "Map" <$> sequence [ Utils.benchImpls Map.impls Map.dataSets, Utils.safetySameAsFirstImpl Map.impls Map.dataSets ]
+  treetraversalBenchgroup <- bgroup "TreeTraversal" <$> sequence [ Utils.benchImpls TreeTraversal.impls TreeTraversal.dataSets, Utils.safetySameAsFirstImpl TreeTraversal.impls TreeTraversal.dataSets, TreeTraversal.extraSafety ]
+  dlistBenchgroup <- bgroup "DList" <$> sequence [ Utils.benchImpls DList.impls DList.dataSets, Utils.safetySameAsFirstImpl DList.impls DList.dataSets ]
+  queueBenchgroup <- bgroup "Queue" <$> sequence [ Utils.benchImpls Queue.impls Queue.dataSets, Utils.safetySameAsFirstImpl Queue.impls Queue.dataSets ]
+  parserBenchgroup <- bgroup "Parser" <$> sequence [ Utils.benchImpls Parser.impls Parser.dataSets, Utils.safetySameAsFirstImpl Parser.impls Parser.dataSets, Parser.extraSafety ]
   defaultMain
     [ mapBenchgroup,
       treetraversalBenchgroup,

@@ -9,7 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -Wno-type-defaults #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Bench.DList where
@@ -20,7 +20,6 @@ import Prelude.Linear hiding (foldl', foldr, concat)
 import Data.Proxy (Proxy)
 import Control.Exception (evaluate)
 import Control.DeepSeq (force)
-import Prelude ((=<<), return, (<$>))
 import qualified Prelude as NonLin
 
 newtype DList r a = DList (Incomplete r [a] (Dest r [a]))
@@ -83,8 +82,12 @@ foldr :: forall a b. (b -> a %1 -> a) -> a %1 -> [b] -> a
 foldr _ s [] = s
 foldr f s (x : xs) = x `f` foldr f s xs
 
-loadBenchData :: IO [[Int]]
-loadBenchData = evaluate =<< force <$> return (NonLin.fmap (\i -> [(100 * i + 0)..(100 * i + 99)]) [0..999])
+dataSets :: [(IO [[Int]], String)]
+dataSets =
+  [ (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^10) `div` 10) - 1)]), "2^10")
+  , (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^13) `div` 10) - 1)]), "2^13")
+  , (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^16) `div` 10) - 1)]), "2^16")
+  ]
 
 concatLeft :: [[a]] -> [a]
 concatLeft = foldl' (\xs ys -> xs ++ ys) []

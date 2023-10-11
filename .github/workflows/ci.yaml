@@ -33,12 +33,12 @@ jobs:
     - name: bench:bench target - build benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:bench"
     - name: bench:bench target - run benchmarks with -T
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T ===\n\n' > benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:bench --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T ===\n\n' >> benchmark_results.txt && cabal bench -w ${{ env.ghc-exe }} --allow-newer linear-dest:bench:bench --benchmark-options='+RTS -T -N1 -RTS' 2>&1 | tee -a benchmark_results.txt"
     - name: bench:bench target - run benchmarks with -T in isolation
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS 2>&1 && tee -a benchmark_results.txt < <(tail -n1 temp.csv); done && rm temp.csv"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmarks -T (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS 2>&1 | tee -a benchmark_results.txt && tee -a temp_results.csv < <(tail -n1 temp.csv); done && rm temp.csv"
   
     - name: bench:bench target - single runs with -s
-      run: nix-shell --pure --run "echo $'\n\n=== Single runs with -s (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do echo $'\n\n=== Benchmark '\""'$'"name\"$' ===\n\n' | tee -a benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- "'$'"name +RTS -s -N1 -RTS 2>&1 | tee -a benchmark_results.txt ; done"
+      run: nix-shell --pure --run "echo $'\n\n=== Single runs with -s (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do echo $'\n\n=== '\""'$'"name\"$'/singleRun ===\n\n' | tee -a benchmark_results.txt -a singleRunStats.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer -v0 linear-dest:bench:bench -- "'$'"name +RTS -s -N1 -RTS 2>&1 | tee -a benchmark_results.txt -a singleRunStats.txt ; done && python3 single_run_stats_to_csv.py singleRunStats.txt >> temp_results.csv && rm singleRunStats.txt && cat <(echo 'Name,Mean time (ps),2*Stdev time (ps),Allocated (bytes),Copied (bytes),Peak Memory/Total memory (bytes),GC time (ps),Residency (bytes),Slop (bytes)') <(sort temp_results.csv) > benchmark_results.csv && rm temp_results.csv"
 
     - name: bench:bench target - build -p profiling
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer --enable-profiling --profiling-detail=late linear-dest:bench:bench"
@@ -52,6 +52,7 @@ jobs:
         path: |
           test_results.txt
           benchmark_results.txt
+          benchmark_results.csv
           prof
-          ./dist-newstyle/build/x86_64-linux/ghc-9.9.20230911/linear-dest-0.2.0/build/**/*.dump-simpl
+          ./dist-newstyle/build/x86_64-linux/ghc-9.9.20230911/linear-dest-0.2.0/**/*.dump-simpl
         retention-days: 30

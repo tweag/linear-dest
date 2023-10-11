@@ -9,7 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -Wno-type-defaults #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Bench.Queue where
@@ -18,11 +18,8 @@ import Compact.Pure
 import qualified Bench.DList as DList
 import Bench.DList
 import Prelude.Linear hiding ((+), (*), (<))
-import Control.Exception (evaluate)
-import Control.DeepSeq (force)
-import Prelude ((=<<), return, (<$>), (+), (*), (<))
+import Prelude (return, (+), (*), (<))
 import Data.Word
-import Data.Bits
 import Data.Proxy (Proxy)
 
 data NaiveQueue a = NaiveQueue [a] [a]
@@ -90,8 +87,12 @@ dequeue (Queue l (DList i)) = case l of
 
 -------------------------------------------------------------------------------
 
-loadBenchData :: IO Word64
-loadBenchData = evaluate =<< force <$> return (2 `shiftL` 16)
+dataSets :: [(IO Word64, String)]
+dataSets =
+  [ (return $ 2^10, "2^10")
+  , (return $ 2^13, "2^13")
+  , (return $ 2^16, "2^16")
+  ]
 
 naiveImpl :: Word64 -> Word64
 naiveImpl limit = go 0 (singletonN 1)

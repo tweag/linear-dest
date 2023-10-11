@@ -32,6 +32,7 @@ mkShell {
     haskell.compiler."ghc${ghcVersion}"
     cabal-install
     gnumake
+    python310
     # stack-wrapped
     # nix
     # haskell-language-server

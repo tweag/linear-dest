@@ -23,12 +23,12 @@ import Compact.Pure
 import Control.Functor.Linear ((<&>))
 import GHC.Generics
 import Prelude.Linear
-import Bench.Queue hiding (loadBenchData, impls)
+import Bench.Queue hiding (dataSets, impls)
 import Data.Proxy (Proxy)
 import Control.DeepSeq (NFData)
 import qualified Prelude as NonLin
 import qualified Data.Functor as NonLin
-import Prelude (Functor, fmap, Applicative, pure, (<*>), (=<<), return, (<$>))
+import Prelude (Functor, fmap, Applicative, pure, (<*>), return)
 import Control.Exception (evaluate)
 import Control.DeepSeq (force)
 import Test.Tasty (TestTree, testGroup)
@@ -104,15 +104,18 @@ mapAccumBFS f s0 tree =
 
 --------------------------------------------------------------------------------
 
-loadBenchData :: IO (BinTree ())
-loadBenchData = evaluate =<< force <$>
-  let maxDepth :: Int
-      maxDepth = 16
-      go currentDepth =
+dataSets :: [(IO (BinTree ()), String)]
+dataSets =
+  [ (evaluate $ force (go 0 10), "2^10")
+  , (evaluate $ force (go 0 13), "2^13")
+  , (evaluate $ force (go 0 16), "2^16")
+  ]
+  where
+      go :: Int -> Int -> BinTree ()
+      go currentDepth maxDepth =
         if currentDepth >= maxDepth
           then Nil
-          else Node () (go (currentDepth + 1)) (go (currentDepth + 1))
-   in return (go 0)
+          else Node () (go (currentDepth + 1) maxDepth) (go (currentDepth + 1) maxDepth)
 
 dpsRelabel :: BinTree () -> (BinTree Int, Int)
 dpsRelabel base = mapAccumBFS (\s _ -> (s + 1, s)) 0 base
@@ -127,24 +130,23 @@ impls =
   ]
 
 extraSafety :: IO TestTree
-extraSafety = do
-  return $ testGroup "safety" $
-    impls NonLin.<&> \(impl, implName, _) ->
-          testCaseInfo (implName ++ " give the good result on a small example") $ do
-            let expected :: (BinTree Int, Int)
-                expected =
-                  ( Node
-                      0
-                      (Node 1 (Leaf 3) (Leaf 4))
-                      (Node 2 (Leaf 5) Nil),
-                    6
-                  )
-                base :: BinTree ()
-                base =
-                  Node
-                    ()
-                    (Node () (Leaf ()) (Leaf ()))
-                    (Node () (Leaf ()) Nil)
-                actual = impl base
-            assertEqual "same result" expected actual
-            return $ ""
+extraSafety =
+  return $ testGroup "extraSafety" $ impls NonLin.<&> \(impl, implName, _) ->
+              testCaseInfo (implName ++ " give the good result on a small example") $ do
+                let expected :: (BinTree Int, Int)
+                    expected =
+                      ( Node
+                          0
+                          (Node 1 (Leaf 3) (Leaf 4))
+                          (Node 2 (Leaf 5) Nil),
+                        6
+                      )
+                    base :: BinTree ()
+                    base =
+                      Node
+                        ()
+                        (Node () (Leaf ()) (Leaf ()))
+                        (Node () (Leaf ()) Nil)
+                    actual = impl base
+                assertEqual "same result" expected actual
+                return $ ""

@@ -29,3 +29,7 @@ cabal.project.local
 ghc-*
 ghc@*
 prof
+
+benchmark_results.txt
+benchmark_results.csv
+test_results.txt

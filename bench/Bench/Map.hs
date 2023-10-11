@@ -9,7 +9,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# OPTIONS_GHC -Wno-name-shadowing #-}
+{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wno-name-shadowing -Wno-type-defaults #-}
 {-# OPTIONS_GHC -ddump-simpl -ddump-to-file -dsuppress-all #-}
 
 module Bench.Map where
@@ -20,7 +21,8 @@ import Prelude.Linear
 import Control.Functor.Linear ((<&>))
 import Data.Proxy (Proxy)
 import Control.DeepSeq (force)
-import Prelude (return, (<$>))
+import Control.Exception (evaluate)
+import Prelude ((<$>))
 
 mapL :: forall a b. (a %1 -> b) -> [a] -> [b]
 mapL _ [] = []
@@ -129,10 +131,12 @@ mapDestFS f l dl =
 
 -------------------------------------------------------------------------------
 
-loadBenchData :: IO (Int %1 -> Int, [Int])
-loadBenchData = do
-  !list <- force <$> return ([1 .. 1000000])
-  return (\x -> 2 * x + 1, list)
+dataSets :: [(IO (Int %1 -> Int, [Int]), String)]
+dataSets =
+  [ ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^10]), "2^10")
+  , ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^13]), "2^13")
+  , ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^16]), "2^16")
+  ]
 
 uncurryDest :: (forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()) -> ((Int %1 -> Int, [Int]) -> [Int])
 uncurryDest impl (f, l) = unur (withRegion (\(_ :: Proxy r) t -> fromIncomplete_ (alloc @r t <&> \d -> impl f l d)))
