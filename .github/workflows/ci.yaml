@@ -37,10 +37,10 @@ jobs:
     - name: bench:jflart target - run benchmarks in isolation
       run: nix-shell --pure --run "echo $'\n\n=== Benchmark Jflart (isolation) ===\n\n' >> benchmark_results.txt &&  cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -l | grep -P 'All\.[^\.]+\.benchmark\.' | while read -r name; do cabal run -w ${{ env.ghc-exe }} -v0 linear-dest:bench:jflart -- -p '"'$'"0 == \"'\""'$'"name\"'\"' --csv temp.csv +RTS -T -N1 -RTS && tee -a benchmark_results.txt < <(tail -n1 temp.csv); done && rm temp.csv"
 
-    - name: exe:gc-stats target - build -p benchmark
+    - name: exe:gc-stats target - build -s benchmark
       run: nix-shell --pure --run "cabal build -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats"
     - name: exe:gc-stats target - run -s benchmark without dest (force)
-      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' > benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
+      run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestForce -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestForce 2>&1 | tee -a benchmark_results.txt"
     - name: exe:gc-stats target - run -s benchmark without dest (copy into region)
       run: nix-shell --pure --run "echo $'\n\n=== Benchmark runParseWithoutDestCopyRegion -s ===\n\n' >> benchmark_results.txt && cabal run -w ${{ env.ghc-exe }} --allow-newer linear-dest:exe:gc-stats -- +RTS -s -RTS runParseWithoutDestCopyRegion 2>&1 | tee -a benchmark_results.txt"
     - name: exe:gc-stats target - run -s benchmark with dest
