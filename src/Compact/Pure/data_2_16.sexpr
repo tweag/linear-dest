@@ -1,3 +1,4 @@
+(
 (ert-deftest company-shows-keywords-alongside-completions-alphabetically ()
   :tags '(company)
   (switch-to-buffer "*TESTING COMPANY MODE ~ Python*")
@@ -2770,3 +2771,4 @@
   (kill-buffer))
 
 
+)
