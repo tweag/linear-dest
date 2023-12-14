@@ -93,6 +93,7 @@ dataSets =
   , (return $ 2^13, "2^13")
   , (return $ 2^16, "2^16")
   , (return $ 2^19, "2^19")
+  , (return $ 2^22, "2^22")
   ]
 
 naiveImpl :: Word64 -> Word64

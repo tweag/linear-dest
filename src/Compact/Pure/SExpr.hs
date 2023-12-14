@@ -33,6 +33,7 @@ dataSets =
   , (evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/data_2_13.sexpr", "2^13")
   , (evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/data_2_16.sexpr", "2^16")
   , (evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/data_2_19.sexpr", "2^19")
+  , (evaluate NonLinear.=<< force NonLinear.<$> BSC.readFile "src/Compact/Pure/data_2_22.sexpr", "2^22")
   ]
 
 data SExpr
