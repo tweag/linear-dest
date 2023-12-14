@@ -136,6 +136,7 @@ dataSets =
   [ ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^10]), "2^10")
   , ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^13]), "2^13")
   , ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^16]), "2^16")
+  , ((\x -> 2 * x + 1,) <$> (evaluate $ force [1 .. 2^19]), "2^19")
   ]
 
 uncurryDest :: (forall (r :: Type) a b. (Region r) => (a %1 -> b) -> [a] -> Dest r [b] %1 -> ()) -> ((Int %1 -> Int, [Int]) -> [Int])

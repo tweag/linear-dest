@@ -66,10 +66,10 @@ fromListN xs = DListN $ \ys -> xs ++ ys
 
 -------------------------------------------------------------------------------
 
+--(concatLeft, "concatLeft", True)
 impls :: [([[Int]] -> [Int], String, Bool)]
 impls =
-  [ (concatLeft, "concatLeft", True)
-  , (concatRight, "concatRight", True)
+  [ (concatRight, "concatRight", True)
   , (differenceListNaiveLeft, "differenceListNaiveLeft", True)
   , (differenceListDestLeft, "differenceListDestLeft", False)
   ]
@@ -87,6 +87,7 @@ dataSets =
   [ (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^10) `div` 10) - 1)]), "2^10")
   , (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^13) `div` 10) - 1)]), "2^13")
   , (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^16) `div` 10) - 1)]), "2^16")
+  , (evaluate $ force (NonLin.fmap (\i -> [(10 * i + 0)..(10 * i + 9)]) [0..(((2^19) `div` 10) - 1)]), "2^19")
   ]
 
 concatLeft :: [[a]] -> [a]
