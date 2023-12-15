@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE LinearTypes #-}
@@ -16,7 +17,7 @@ module Bench.Queue where
 
 import Compact.Pure
 import qualified Bench.DList as DList
-import Bench.DList
+import Bench.DList (DListN(..), DList(..))
 import Prelude.Linear hiding ((+), (*), (<))
 import Prelude (return, (+), (*), (<))
 import Data.Word
@@ -64,7 +65,8 @@ dequeueF (QueueF l dl) = case l of
     (x : xs) -> Just (x, QueueF xs DList.newN)
   (x : xs) -> Just (x, QueueF xs dl)
 
-data Queue r a = Queue [a] (DList r a)
+data Queue r a where
+  Queue :: [a] -> DList r a %1 -> Queue r a
 
 new :: forall r a. (Region r) => Token %1 -> Queue r a
 new token = Queue [] (DList.new @r token)
@@ -72,18 +74,22 @@ new token = Queue [] (DList.new @r token)
 singleton :: forall r a. (Region r) => Token %1 -> a -> Queue r a
 singleton token x = Queue [x] (DList.new @r token)
 
+toUList :: forall r a. (Region r) => Queue r a %1 -> Ur [a]
+toUList (Queue l dl) = case DList.toUList dl of
+  Ur l' -> Ur $ l ++ l'
+
 toList :: forall r a. (Region r) => Queue r a %1 -> [a]
-toList (Queue l dl) = l ++ DList.toList dl
+toList = unur . toUList
 
 enqueue :: forall r a. (Region r) => Queue r a %1 -> a -> Queue r a
 enqueue (Queue l dl) x = Queue l (DList.append dl x)
 
-dequeue :: forall r a. (Region r) => Queue r a %1 -> Maybe (a, Queue r a)
+dequeue :: forall r a. (Region r) => Queue r a %1 -> Maybe (Ur a, Queue r a)
 dequeue (Queue l (DList i)) = case l of
-  [] -> let !(i', token) = piggyback i in case DList.toList (DList i') of
-    [] -> consume token `lseq` Nothing
-    (x : xs) -> Just (x, Queue xs (DList.new @r token))
-  (x : xs) -> Just (x, Queue xs (DList i))
+  [] -> let !(i', token) = piggyback i in case DList.toUList (DList i') of
+    Ur [] -> consume token `lseq` Nothing
+    Ur (x : xs) -> Just (Ur x, Queue xs (DList.new @r token))
+  (x : xs) -> Just (Ur x, Queue xs (DList i))
 
 -------------------------------------------------------------------------------
 
@@ -117,14 +123,14 @@ funcImpl limit = go 0 (singletonF 1)
                 else q'
 
 destImpl :: Word64 -> Word64
-destImpl limit = unur (withRegion (\(_ :: Proxy r) t -> let r = go 0 (singleton @r t (Ur 1)) in move r))
+destImpl limit = unur (withRegion (\(_ :: Proxy r) t -> go 0 (singleton @r t 1)))
   where
-    go :: Region r => Word64 -> Queue r (Ur Word64) %1 -> Word64
+    go :: Region r => Word64 -> Queue r Word64 %1 -> Ur Word64
     go sum q = case dequeue q of
-      Nothing -> sum
+      Nothing -> Ur sum
       Just (Ur x, q') -> go (sum + x) q'' where
         q'' = if x < limit
-                then q' `enqueue` Ur (2 * x) `enqueue` Ur (2 * x + 1)
+                then q' `enqueue` (2 * x) `enqueue` (2 * x + 1)
                 else q'
 
 impls :: [(Word64 -> Word64, String, Bool)]
